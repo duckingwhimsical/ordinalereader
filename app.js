@@ -77,7 +77,8 @@ class EPUBReader {
             this.updateLoadingStatus('Generating page locations...');
             this.updateLoadingProgress(50);
 
-            await this.book.locations.generate(1024);
+            // Generate locations with more sections for better accuracy
+            await this.book.locations.generate(2048);
 
             this.updateLoadingStatus('Loading content...');
             this.updateLoadingProgress(90);
@@ -168,8 +169,26 @@ class EPUBReader {
         }
 
         try {
-            const currentPage = this.book.locations.currentLocation();
+            // Make sure locations are generated
+            if (!this.book.locations || !this.book.locations._locations) {
+                console.log('Locations not yet generated');
+                this.elements.currentPage.textContent = 'Generating page numbers...';
+                return;
+            }
+
+            // Get the percentage through the book
+            const percentage = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
+
+            // Convert percentage to page number
+            const currentPage = Math.ceil((percentage * this.book.locations.length()));
             const totalPages = this.book.locations.length();
+
+            console.log('Page calculation:', {
+                cfi: this.currentLocation.start.cfi,
+                percentage,
+                currentPage,
+                totalPages
+            });
 
             this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
         } catch (error) {
@@ -488,8 +507,15 @@ class EPUBReader {
     }
 
     getCurrentPage() {
-        if (!this.book || !this.currentLocation) return 1;
-        return this.book.locations.currentLocation();
+        if (!this.book || !this.currentLocation || !this.book.locations) return 1;
+
+        try {
+            const percentage = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
+            return Math.ceil((percentage * this.book.locations.length()));
+        } catch (error) {
+            console.error('Error getting current page:', error);
+            return 1;
+        }
     }
 
     loadSettings() {
