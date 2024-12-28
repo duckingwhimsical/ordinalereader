@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await window.reader.loadBook(blob);
                 console.log('Book loaded successfully');
-                document.getElementById('filePrompt').classList.add('hidden');
                 document.getElementById('loadingOverlay').classList.add('hidden');
             } catch (error) {
                 console.error('Error rendering book:', error);

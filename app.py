@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_url_path='')
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 def setup_default_book():
     """Setup default book in attached_assets directory"""
@@ -40,16 +40,16 @@ def index():
         logger.error(f'Unexpected error serving index.html: {str(e)}')
         abort(500)
 
-@app.route('/<path:filename>')
-def serve_files(filename):
+@app.route('/js/<path:filename>')
+def serve_js(filename):
     try:
-        logger.debug(f'Attempting to serve file: {filename}')
-        if Path(filename).is_file():
-            return send_file(filename)
-        logger.error(f'File not found: {filename}')
+        logger.debug(f'Attempting to serve JS file: {filename}')
+        return send_file(os.path.join('static', 'js', filename))
+    except FileNotFoundError:
+        logger.error(f'JS file not found: {filename}')
         abort(404)
     except Exception as e:
-        logger.error(f'Error serving {filename}: {str(e)}')
+        logger.error(f'Error serving JS file {filename}: {str(e)}')
         abort(500)
 
 @app.route('/epub/<path:filename>')
@@ -63,13 +63,7 @@ def serve_epub(filename):
                 logger.info(f'Successfully serving default EPUB file from: {epub_path}')
                 return send_file(epub_path)
 
-        # For other epub files, look in attached_assets
-        epub_path = os.path.join('attached_assets', filename)
-        if Path(epub_path).is_file():
-            logger.info(f'Successfully serving EPUB file: {epub_path}')
-            return send_file(epub_path)
-
-        logger.error(f'EPUB file not found: {epub_path}')
+        logger.error(f'EPUB file not found: {filename}')
         abort(404)
     except Exception as e:
         logger.error(f'Error serving EPUB {filename}: {str(e)}')
