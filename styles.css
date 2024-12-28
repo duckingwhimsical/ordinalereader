@@ -1,3 +1,73 @@
+/* Book loading animation styles */
+.perspective-1000 {
+    perspective: 1000px;
+}
+
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+
+.book-spine {
+    transform: translateZ(-25px);
+    backface-visibility: hidden;
+}
+
+.front-cover {
+    transform-origin: left;
+    backface-visibility: hidden;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Page turning animation */
+@keyframes pageTurn {
+    0%, 100% {
+        transform: rotateY(0deg);
+    }
+    50% {
+        transform: rotateY(-180deg);
+    }
+}
+
+.animate-page-turn {
+    animation: pageTurn 1.5s ease-in-out infinite;
+}
+
+/* Loading progress animation */
+@keyframes progressPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+#loadingProgress {
+    transition: width 0.3s ease-out;
+}
+
+#loadingStatus {
+    animation: progressPulse 2s ease-in-out infinite;
+}
+
+/* Theme-specific colors */
+.dark .book-spine {
+    background-color: theme('colors.blue.600');
+}
+
+.dark .front-cover {
+    background-color: theme('colors.blue.500');
+}
+
+.sepia .book-spine {
+    background-color: theme('colors.sepia.400');
+}
+
+.sepia .front-cover {
+    background-color: theme('colors.sepia.300');
+}
+
+/* Original styles.css content */
 :root {
     --primary-color: #2196f3;
     --background-color: #ffffff;
