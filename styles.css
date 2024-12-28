@@ -378,10 +378,13 @@ body {
 }
 
 .bottom-controls #currentPage {
-    min-width: 60px;
+    min-width: 40px; /* Reduced from 60px */
     text-align: center;
-    font-size: 1.1em;
+    font-size: 0.9em; /* Reduced from 1.1em */
     color: var(--text-color);
+    padding: 4px 8px;
+    background-color: var(--hover-color);
+    border-radius: 12px;
 }
 
 .bottom-controls .icon-button {
@@ -394,19 +397,18 @@ body {
     background-color: var(--hover-color);
 }
 
-
 /* Side navigation buttons */
 .side-nav {
     position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
+    top: var(--toolbar-height);
+    height: calc(100vh - var(--toolbar-height) - 60px); /* Full height minus toolbar and bottom controls */
+    width: 15%;
     background-color: rgba(var(--text-color-rgb), 0.1);
     border: none;
-    border-radius: 8px;
-    padding: 20px 12px;
     cursor: pointer;
     transition: background-color 0.3s ease;
     z-index: 100;
+    padding: 0;
 }
 
 .side-nav:hover {
@@ -414,9 +416,9 @@ body {
 }
 
 .left-nav {
-    left: 20px;
+    left: 0;
 }
 
 .right-nav {
-    right: 20px;
+    right: 0;
 }
