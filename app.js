@@ -168,9 +168,6 @@ class EPUBReader {
             return;
         }
 
-        let currentPage = 1;
-        let totalPages = 1;
-
         // Get current location
         const loc = this.currentLocation;
         if (!loc) {
@@ -181,16 +178,13 @@ class EPUBReader {
         // Get the current CFI
         const cfi = loc.start.cfi;
         if (this.book.locations.length() && cfi) {
-            // Calculate current page from CFI
+            // Calculate percentage
             const progress = this.book.locations.percentageFromCfi(cfi);
-            // Get total pages
-            totalPages = this.book.locations.length();
-            // Calculate current page
-            currentPage = Math.ceil(progress * totalPages);
-        }
+            const percentage = Math.round(progress * 100);
 
-        // Update page display
-        this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
+            // Update percentage display
+            this.elements.currentPage.textContent = `${percentage}%`;
+        }
     }
 
     prevPage() {
