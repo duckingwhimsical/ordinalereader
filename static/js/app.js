@@ -342,14 +342,29 @@ class EPUBReader {
             }, 2000);
         };
 
+        // Handle direct taps on navigation buttons
+        this.elements.prevPage.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.prevPage();
+            showNavigation();
+        });
+
+        this.elements.nextPage.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.nextPage();
+            showNavigation();
+        });
+
+        // Handle swipe navigation on the reader area
         this.elements.reader.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#prevPage, #nextPage')) return;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             showNavigation();
         });
 
         this.elements.reader.addEventListener('touchend', (e) => {
-            if (!touchStartX) return;
+            if (!touchStartX || e.target.closest('#prevPage, #nextPage')) return;
 
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
