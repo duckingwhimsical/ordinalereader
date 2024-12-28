@@ -1,5 +1,15 @@
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        console.log('Initializing EPUB Reader...');
+        new EPUBReader();
+    } catch (error) {
+        console.error('Error initializing EPUB Reader:', error);
+    }
+});
+
 class EPUBReader {
     constructor() {
+        console.log('Setting up EPUB Reader...');
         this.book = null;
         this.rendition = null;
         this.currentLocation = null;
@@ -12,6 +22,7 @@ class EPUBReader {
     }
 
     initializeElements() {
+        console.log('Initializing elements...');
         // Initialize all required elements
         this.elements = {
             sidebar: document.querySelector('#sidebar'),
@@ -230,14 +241,24 @@ class EPUBReader {
     }
 
     toggleSidebar() {
-        if (!this.elements.sidebar) return;
+        console.log('Toggling sidebar...');
+        if (!this.elements.sidebar) {
+            console.error('Sidebar element not found');
+            return;
+        }
         this.elements.sidebar.classList.toggle('open');
     }
 
     toggleSearch() {
-        if (!this.elements.searchOverlay) return;
+        console.log('Toggling search...');
+        if (!this.elements.searchOverlay) {
+            console.error('Search overlay element not found');
+            return;
+        }
 
         const isOpen = this.elements.searchOverlay.classList.toggle('open');
+        this.elements.searchOverlay.classList.toggle('hidden', !isOpen);
+
         if (isOpen) {
             this.elements.searchInput.value = '';
             this.elements.searchInput.focus();
@@ -730,9 +751,13 @@ class EPUBReader {
         this.updateTheme();
     }
     setupEventListeners() {
+        console.log('Setting up event listeners...');
+
         // Menu button click handler
         if (this.elements.menuButton) {
+            console.log('Setting up menu button...');
             this.elements.menuButton.addEventListener('click', (e) => {
+                console.log('Menu button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 this.toggleSidebar();
@@ -758,7 +783,9 @@ class EPUBReader {
 
         // Search functionality
         if (this.elements.searchButton) {
+            console.log('Setting up search button...');
             this.elements.searchButton.addEventListener('click', (e) => {
+                console.log('Search button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 this.toggleSearch();
@@ -776,7 +803,7 @@ class EPUBReader {
 
         // Close search overlay when clicking outside
         document.addEventListener('click', (e) => {
-            if (this.elements.searchOverlay && 
+            if (this.elements.searchOverlay &&
                 this.elements.searchOverlay.classList.contains('open') &&
                 !this.elements.searchOverlay.contains(e.target) &&
                 !this.elements.searchButton.contains(e.target)) {
@@ -865,7 +892,3 @@ class EPUBReader {
         });
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    new EPUBReader();
-});
