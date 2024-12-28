@@ -163,35 +163,34 @@ class EPUBReader {
     }
 
     updatePageInfo() {
-        if (!this.book || !this.currentLocation) {
-            this.elements.currentPage.textContent = 'Loading...';
+        if (!this.book || !this.rendition) {
+            this.elements.currentPage.textContent = '';
             return;
         }
 
-        try {
-            // Check if the book has built-in page numbers
-            const pageList = this.book.package.metadata.page_list;
+        let currentPage = 1;
+        let totalPages = 1;
 
-            if (!pageList) {
-                console.log('No built-in page numbers available in this EPUB');
-                this.elements.currentPage.textContent = 'No page numbers available';
-                return;
-            }
-
-            // Find the current page using the CFI
-            const currentCfi = this.currentLocation.start.cfi;
-            const currentPage = pageList.find(page => page.cfi === currentCfi);
-
-            if (currentPage) {
-                this.elements.currentPage.textContent = `Page ${currentPage.value}`;
-            } else {
-                this.elements.currentPage.textContent = 'Page number not available';
-            }
-
-        } catch (error) {
-            console.error('Error accessing page numbers:', error);
-            this.elements.currentPage.textContent = 'Page numbers not available';
+        // Get current location
+        const loc = this.currentLocation;
+        if (!loc) {
+            this.elements.currentPage.textContent = '';
+            return;
         }
+
+        // Get the current CFI
+        const cfi = loc.start.cfi;
+        if (this.book.locations.length() && cfi) {
+            // Calculate current page from CFI
+            const progress = this.book.locations.percentageFromCfi(cfi);
+            // Get total pages
+            totalPages = this.book.locations.length();
+            // Calculate current page
+            currentPage = Math.ceil(progress * totalPages);
+        }
+
+        // Update page display
+        this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
     }
 
     prevPage() {
