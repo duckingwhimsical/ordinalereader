@@ -119,8 +119,9 @@ body {
 }
 
 #reader {
-    height: calc(100vh - var(--toolbar-height));
+    height: calc(100vh - var(--toolbar-height) - 60px); /* Reduced height to make room for bottom controls */
     overflow: hidden;
+    position: relative;
 }
 
 .file-prompt {
@@ -356,4 +357,37 @@ body {
     color: var(--text-color);
     margin-top: 10px;
     font-size: 0.9em;
+}
+
+.bottom-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: var(--background-color);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 0 20px;
+    z-index: 100;
+}
+
+.bottom-controls #currentPage {
+    min-width: 60px;
+    text-align: center;
+    font-size: 1.1em;
+    color: var(--text-color);
+}
+
+.bottom-controls .icon-button {
+    padding: 12px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.bottom-controls .icon-button:hover {
+    background-color: var(--hover-color);
 }
