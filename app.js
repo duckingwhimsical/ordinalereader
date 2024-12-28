@@ -729,6 +729,97 @@ class EPUBReader {
         this.rendition.themes.fontSize(`${this.settings.fontSize}px`);
         this.updateTheme();
     }
+    setupEventListeners() {
+        this.elements.menuButton.addEventListener('click', () => this.toggleSidebar());
+        this.elements.closeSidebar.addEventListener('click', () => this.toggleSidebar());
+
+        this.elements.prevPage.addEventListener('click', () => this.prevPage());
+        this.elements.nextPage.addEventListener('click', () => this.nextPage());
+
+        this.elements.searchButton.addEventListener('click', () => this.toggleSearch());
+        this.elements.searchInput.addEventListener('input', () => this.handleSearch());
+
+        this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
+
+        this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
+        this.elements.theme.addEventListener('change', () => this.updateTheme());
+
+        this.elements.bookInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/epub+zip') {
+                await this.loadBook(file);
+            }
+        });
+
+        this.setupDragAndDrop();
+        this.setupTouchNavigation();
+        this.setupKeyboardNavigation();
+    }
+
+    setupDragAndDrop() {
+        const dropZone = document.querySelector('.file-prompt');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/epub+zip') {
+                await this.loadBook(files[0]);
+            }
+        });
+    }
+
+    setupTouchNavigation() {
+        let touchStartX = null;
+
+        this.elements.reader.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        this.elements.reader.addEventListener('touchend', (e) => {
+            if (!touchStartX) return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const diff = touchStartX - touchEndX;
+
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    this.nextPage();
+                } else {
+                    this.prevPage();
+                }
+            }
+
+            touchStartX = null;
+        });
+    }
+
+    setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    this.prevPage();
+                    break;
+                case 'ArrowRight':
+                    this.nextPage();
+                    break;
+            }
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

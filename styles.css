@@ -133,11 +133,19 @@ body {
     align-items: center;
     justify-content: center;
     background-color: var(--background-color);
+    transition: background-color 0.3s ease;
+}
+
+.file-prompt.drag-over {
+    background-color: rgba(33, 150, 243, 0.1);
 }
 
 .file-prompt-content {
     text-align: center;
     padding: 20px;
+    border-radius: 8px;
+    background-color: var(--background-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .search-overlay {
@@ -307,6 +315,13 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 2000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .loading-content {
@@ -334,7 +349,7 @@ body {
     width: 0%;
     height: 100%;
     background-color: var(--primary-color);
-    transition: width 0.3s ease;
+    transition: width 0.5s ease-out;
 }
 
 #loadingStatus {
