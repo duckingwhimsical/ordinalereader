@@ -101,7 +101,15 @@ class EPUBReader {
 
             console.log('Displaying book...');
             this.updateLoadingProgress(80, 'Rendering content...');
-            await this.rendition.display();
+
+            // Retrieve the last position
+            const lastPosition = localStorage.getItem('epub-last-position');
+            if (lastPosition) {
+                console.log('Restoring last position:', lastPosition);
+                await this.rendition.display(lastPosition);
+            } else {
+                await this.rendition.display();
+            }
 
             console.log('Setting up navigation...');
             this.updateLoadingProgress(90, 'Finalizing...');
@@ -690,6 +698,11 @@ class EPUBReader {
         if (!this.rendition) return;
 
         this.rendition.on('relocated', (location) => {
+            // Store the current location whenever it changes
+            if (location && location.start) {
+                localStorage.setItem('epub-last-position', location.start.cfi);
+            }
+
             // Calculate percentage based on CFI if locations are available
             if (this.book.locations && this.book.locations.length()) {
                 const progress = this.book.locations.percentageFromCfi(location.start.cfi);
