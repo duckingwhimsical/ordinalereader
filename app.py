@@ -15,23 +15,18 @@ def setup_default_book():
         assets_dir = Path('attached_assets')
         assets_dir.mkdir(exist_ok=True)
 
-        # Check if default book exists
-        default_book = next(assets_dir.glob('*.epub'), None)
-        if default_book and default_book.exists():
-            logger.info(f'Default book found: {default_book.name}')
-            # Create a symlink to make it accessible as default.epub
-            target_link = assets_dir / 'default.epub'
-            if not target_link.exists():
-                try:
-                    os.symlink(default_book, target_link)
-                    logger.info('Created symlink to default book')
-                except Exception as e:
-                    logger.error(f'Failed to create symlink: {str(e)}')
+        # Check for specific ebook.epub file
+        default_book = assets_dir / 'ebook.epub'
+        if default_book.exists():
+            logger.info('Found ebook.epub in attached_assets directory')
+            return True
         else:
-            logger.warning('No EPUB books found in attached_assets directory')
+            logger.warning('ebook.epub not found in attached_assets directory')
+            return False
 
     except Exception as e:
-        logger.error(f'Error checking for default book: {str(e)}')
+        logger.error(f'Error checking for ebook.epub: {str(e)}')
+        return False
 
 @app.route('/')
 def index():
@@ -49,7 +44,6 @@ def index():
 def serve_files(filename):
     try:
         logger.debug(f'Attempting to serve file: {filename}')
-        # Check if file exists before attempting to serve
         if Path(filename).is_file():
             return send_file(filename)
         logger.error(f'File not found: {filename}')
@@ -62,10 +56,19 @@ def serve_files(filename):
 def serve_epub(filename):
     try:
         logger.debug(f'Attempting to serve EPUB file: {filename}')
+        # Always serve ebook.epub as default.epub
+        if filename == 'default.epub':
+            epub_path = os.path.join('attached_assets', 'ebook.epub')
+            if Path(epub_path).is_file():
+                logger.info(f'Successfully serving default EPUB file from: {epub_path}')
+                return send_file(epub_path)
+
+        # For other epub files, look in attached_assets
         epub_path = os.path.join('attached_assets', filename)
         if Path(epub_path).is_file():
             logger.info(f'Successfully serving EPUB file: {epub_path}')
             return send_file(epub_path)
+
         logger.error(f'EPUB file not found: {epub_path}')
         abort(404)
     except Exception as e:

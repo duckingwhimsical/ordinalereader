@@ -2,17 +2,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.reader = new EPUBReader();
     // Try to load default book
     try {
+        console.log('Attempting to load default book...');
         const response = await fetch('/epub/default.epub');
         if (response.ok) {
+            console.log('Default book found, loading...');
             const blob = await response.blob();
-            await window.reader.loadBook(blob);
+            try {
+                await window.reader.loadBook(blob);
+                console.log('Book loaded successfully');
+                document.getElementById('filePrompt').classList.add('hidden');
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            } catch (error) {
+                console.error('Error rendering book:', error);
+                document.getElementById('filePrompt').classList.remove('hidden');
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
         } else {
             console.log('No default book found, showing file prompt');
             document.getElementById('filePrompt').classList.remove('hidden');
+            document.getElementById('loadingOverlay').classList.add('hidden');
         }
     } catch (error) {
         console.error('Error loading default book:', error);
         document.getElementById('filePrompt').classList.remove('hidden');
+        document.getElementById('loadingOverlay').classList.add('hidden');
     }
 });
 
