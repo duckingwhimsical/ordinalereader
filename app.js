@@ -253,30 +253,30 @@ class EPUBReader {
             return;
         }
 
-        this._sidebarToggling = true;
-        console.log('Current sidebar state:', sidebar.classList.contains('open') ? 'open' : 'closed');
+        try {
+            this._sidebarToggling = true;
+            const isOpen = sidebar.classList.contains('open');
 
-        // Force reflow and handle transition
-        sidebar.style.display = 'block';
-        sidebar.style.transition = 'transform 0.3s ease-in-out';
+            requestAnimationFrame(() => {
+                if (isOpen) {
+                    sidebar.classList.remove('open');
+                } else {
+                    sidebar.style.visibility = 'visible';
+                    sidebar.classList.add('open');
+                }
 
-        // Toggle state
-        const isOpen = sidebar.classList.contains('open');
-        console.log('Toggling sidebar from:', isOpen ? 'open' : 'closed');
-
-        if (isOpen) {
-            sidebar.classList.remove('open');
-            console.log('Sidebar closing...');
-        } else {
-            sidebar.classList.add('open');
-            console.log('Sidebar opening...');
-        }
-
-        // Reset toggle lock after transition
-        setTimeout(() => {
+                // Reset toggle lock after transition
+                setTimeout(() => {
+                    this._sidebarToggling = false;
+                    if (!sidebar.classList.contains('open')) {
+                        sidebar.style.visibility = 'hidden';
+                    }
+                }, 300);
+            });
+        } catch (error) {
+            console.error('Error toggling sidebar:', error);
             this._sidebarToggling = false;
-            console.log('Sidebar toggle complete');
-        }, 300);
+        }
     }
 
     toggleSearch() {
@@ -792,24 +792,23 @@ class EPUBReader {
 
         console.log('Setting up menu button...');
 
-        // Use a debounced click handler
-        let menuClickTimeout;
+        // Use debounced click handler with requestAnimationFrame
+        let isProcessingClick = false;
         menuButton.addEventListener('click', (e) => {
-            console.log('Menu button clicked');
             e.preventDefault();
             e.stopPropagation();
 
-            // Debounce rapid clicks
-            if (menuClickTimeout) {
-                console.log('Debouncing rapid click');
+            if (isProcessingClick) {
                 return;
             }
 
-            this.toggleSidebar();
-
-            menuClickTimeout = setTimeout(() => {
-                menuClickTimeout = null;
-            }, 300);
+            isProcessingClick = true;
+            requestAnimationFrame(() => {
+                this.toggleSidebar();
+                setTimeout(() => {
+                    isProcessingClick = false;
+                }, 300);
+            });
         });
 
         // Close sidebar button

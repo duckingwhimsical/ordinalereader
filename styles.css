@@ -54,10 +54,13 @@ body {
     z-index: 1000;
     padding: 20px;
     overflow-y: auto;
+    visibility: hidden; /* Hide by default */
+    transform: translateX(0); /* Start position */
 }
 
 .sidebar.open {
     transform: translateX(var(--sidebar-width));
+    visibility: visible;
 }
 
 @media (max-width: 768px) {
@@ -68,7 +71,7 @@ body {
     }
 
     .sidebar.open {
-        transform: translateX(100%);
+        transform: translateX(90%);
     }
 }
 
