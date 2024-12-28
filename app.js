@@ -249,21 +249,32 @@ class EPUBReader {
 
         try {
             const isOpen = sidebar.classList.contains('open');
+            console.log('Current sidebar state:', isOpen ? 'open' : 'closed');
 
-            // Add transition class before toggling
+            // Force a reflow before adding transition
+            sidebar.style.display = 'none';
+            sidebar.offsetHeight; // Trigger reflow
+            sidebar.style.display = '';
+
+            // Add transition with logging
+            console.log('Adding transition...');
             sidebar.style.transition = 'transform 0.3s ease';
 
             // Use requestAnimationFrame for smooth animation
             requestAnimationFrame(() => {
+                console.log('Applying transform...');
                 if (isOpen) {
+                    console.log('Closing sidebar...');
                     sidebar.classList.remove('open');
                 } else {
+                    console.log('Opening sidebar...');
                     sidebar.classList.add('open');
                 }
             });
 
             // Clean up transition after animation
             setTimeout(() => {
+                console.log('Animation complete. Final state:', sidebar.classList.contains('open') ? 'open' : 'closed');
                 this._sidebarToggling = false;
             }, 300);
 
