@@ -7,7 +7,7 @@ class EPUBReader {
         this.bookmarks = new Set(this.loadBookmarks());
         this.currentPage = 0;
         this.totalPages = 0;
-        this.pageOffsets = new Map(); 
+        this.pageOffsets = new Map();
         this.initializeElements();
         this.setupEventListeners();
         this.applySettings();
@@ -170,22 +170,40 @@ class EPUBReader {
 
                 // Navigate to the section and wait for it to load
                 await this.rendition.display(item.href);
+                await new Promise(resolve => setTimeout(resolve, 100)); // Ensure content is loaded
 
                 // Get the section's page count
-                const displayed = this.rendition.currentLocation().start.displayed;
-                if (displayed && displayed.total > 0) {
-                    cumulativePages += displayed.total;
+                const location = this.rendition.currentLocation();
+                if (location && location.start.displayed) {
+                    const total = location.start.displayed.total;
+                    // Add the total pages for this section
+                    cumulativePages += total;
+
+                    // Log the page calculation for debugging
+                    console.log('Chapter page calculation:', {
+                        href: item.href,
+                        offset: this.pageOffsets.get(item.href),
+                        total: total,
+                        cumulative: cumulativePages
+                    });
                 } else {
                     // Fallback: estimate pages based on content size
                     const section = await this.book.spine.get(item.href).load();
                     const contentLength = section.content.length;
                     const estimatedPages = Math.ceil(contentLength / 1500); // Approximate chars per page
                     cumulativePages += estimatedPages;
+
+                    console.log('Using fallback page calculation:', {
+                        href: item.href,
+                        contentLength,
+                        estimatedPages,
+                        cumulative: cumulativePages
+                    });
                 }
             }
 
             this.totalPages = cumulativePages;
-            console.log('Page calculation complete:', {
+            console.log('Final page calculation:', {
                 totalPages: this.totalPages,
                 pageOffsets: Object.fromEntries(this.pageOffsets)
             });
@@ -246,38 +264,43 @@ class EPUBReader {
             const chapterHref = location.start.href;
             const pageOffset = this.pageOffsets.get(chapterHref) || 0;
 
-            // Get the current spine position
+            // Get the current spine position for chapter boundary detection
             const currentSpinePosition = this.book.spine.items.findIndex(item => item.href === chapterHref);
             let currentPage;
 
             if (location.start.displayed) {
-                // Calculate the actual page number within the current section
-                currentPage = pageOffset + location.start.displayed.page;
+                // Get the current page within this chapter
+                const currentChapterPage = location.start.displayed.page;
+                const totalPagesInChapter = location.start.displayed.total;
 
-                // Validate that the page number is within bounds
-                if (currentPage > this.totalPages) {
-                    console.warn('Page number exceeds total pages, falling back to percentage-based calculation');
-                    const percentage = this.book.locations.percentageFromCfi(location.start.cfi);
-                    currentPage = Math.ceil(percentage * this.totalPages);
+                // Calculate the actual page number
+                currentPage = pageOffset + currentChapterPage;
+
+                // Log detailed page calculation for debugging
+                console.log('Page calculation:', {
+                    chapterHref,
+                    pageOffset,
+                    currentChapterPage,
+                    totalPagesInChapter,
+                    calculatedPage: currentPage
+                });
+
+                // Ensure page number doesn't exceed chapter boundaries
+                if (currentChapterPage > totalPagesInChapter) {
+                    console.warn('Page number exceeds chapter total, adjusting...');
+                    currentPage = pageOffset + totalPagesInChapter;
                 }
             } else {
                 // Fallback to percentage-based calculation
                 const percentage = this.book.locations.percentageFromCfi(location.start.cfi);
                 currentPage = Math.ceil(percentage * this.totalPages);
+                console.log('Using percentage-based fallback:', { percentage, calculatedPage: currentPage });
             }
 
             // Ensure page number is valid
             currentPage = Math.max(1, Math.min(currentPage, this.totalPages));
 
             this.elements.currentPage.textContent = `Page ${currentPage} of ${this.totalPages}`;
-            console.log('Page info updated:', {
-                chapterHref,
-                pageOffset,
-                spinePosition: currentSpinePosition,
-                displayedPage: location.start.displayed?.page,
-                calculatedPage: currentPage,
-                totalPages: this.totalPages
-            });
         } catch (error) {
             console.error('Error displaying page numbers:', error, {
                 location: this.currentLocation,
