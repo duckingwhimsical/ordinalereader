@@ -236,23 +236,112 @@ class EPUBReader {
     async handleSearch() {
         const query = this.elements.searchInput.value;
         if (!query || query.length < 3) {
-            this.elements.searchResults.innerHTML = '';
+            this.elements.searchResults.innerHTML = '<div class="search-placeholder">Enter at least 3 characters to search</div>';
             return;
         }
 
-        const results = await this.book.search(query);
-        this.elements.searchResults.innerHTML = '';
+        // Show loading state
+        this.elements.searchResults.innerHTML = '<div class="search-loading">Searching...</div>';
 
-        results.forEach(result => {
-            const div = document.createElement('div');
-            div.classList.add('search-result');
-            div.textContent = result.excerpt;
-            div.addEventListener('click', () => {
-                this.rendition.display(result.cfi);
-                this.toggleSearch();
+        try {
+            const results = await this.book.search(query);
+            this.elements.searchResults.innerHTML = '';
+
+            if (results.length === 0) {
+                this.elements.searchResults.innerHTML = '<div class="search-no-results">No results found</div>';
+                return;
+            }
+
+            const searchCount = document.createElement('div');
+            searchCount.classList.add('search-count');
+            searchCount.textContent = `Found ${results.length} result${results.length === 1 ? '' : 's'}`;
+            this.elements.searchResults.appendChild(searchCount);
+
+            results.forEach((result, index) => {
+                const div = document.createElement('div');
+                div.classList.add('search-result');
+
+                // Create chapter info
+                const chapterInfo = document.createElement('div');
+                chapterInfo.classList.add('search-result-chapter');
+                const chapter = this.getChapterFromCfi(result.cfi);
+                chapterInfo.textContent = chapter || 'Unknown Chapter';
+
+                // Create excerpt container with highlighted text
+                const excerptContainer = document.createElement('div');
+                excerptContainer.classList.add('search-result-excerpt');
+                const highlightedText = this.highlightSearchText(result.excerpt, query);
+                excerptContainer.innerHTML = highlightedText;
+
+                // Add chapter info and excerpt to result
+                div.appendChild(chapterInfo);
+                div.appendChild(excerptContainer);
+
+                // Add touch-friendly click handler
+                div.addEventListener('click', async () => {
+                    try {
+                        await this.rendition.display(result.cfi);
+                        this.currentLocation = this.rendition.currentLocation();
+                        this.updatePageInfo();
+                        this.toggleSearch();
+
+                        // Highlight the found text temporarily
+                        const contents = this.rendition.getContents();
+                        contents.forEach(content => {
+                            content.window.getSelection().removeAllRanges();
+                            const range = this.book.range(result.cfi);
+                            if (range) {
+                                const selection = content.window.getSelection();
+                                selection.addRange(range);
+                            }
+                        });
+
+                        // Remove highlight after a delay
+                        setTimeout(() => {
+                            contents.forEach(content => {
+                                content.window.getSelection().removeAllRanges();
+                            });
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Error navigating to search result:', error);
+                    }
+                });
+
+                this.elements.searchResults.appendChild(div);
             });
-            this.elements.searchResults.appendChild(div);
-        });
+        } catch (error) {
+            console.error('Error performing search:', error);
+            this.elements.searchResults.innerHTML = '<div class="search-error">An error occurred while searching</div>';
+        }
+    }
+
+    // Helper method to get chapter information from CFI
+    getChapterFromCfi(cfi) {
+        try {
+            const spineItem = this.book.spine.get(this.book.canonical(cfi));
+            if (!spineItem) return null;
+
+            const chapter = this.book.navigation?.toc.find(item =>
+                item.href === spineItem.href ||
+                (item.subitems && item.subitems.some(subitem => subitem.href === spineItem.href))
+            );
+
+            return chapter ? chapter.label : `Chapter ${spineItem.index + 1}`;
+        } catch (error) {
+            console.error('Error getting chapter from CFI:', error);
+            return null;
+        }
+    }
+
+    // Helper method to highlight search text in excerpt
+    highlightSearchText(excerpt, query) {
+        try {
+            const regex = new RegExp(`(${query})`, 'gi');
+            return excerpt.replace(regex, '<mark>$1</mark>');
+        } catch (error) {
+            console.error('Error highlighting text:', error);
+            return excerpt;
+        }
     }
 
     async toggleBookmark() {
