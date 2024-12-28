@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Reader</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+</head>
+<body>
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>Menu</h2>
+            <button id="closeSidebar" class="icon-button" aria-label="Close menu"></button>
+        </div>
+        <div class="sidebar-content">
+            <div class="sidebar-section">
+                <h3>Table of Contents</h3>
+                <div id="toc"></div>
+            </div>
+            <div class="sidebar-section">
+                <h3>Bookmarks</h3>
+                <div id="bookmarks"></div>
+            </div>
+            <div class="sidebar-section">
+                <h3>Settings</h3>
+                <div class="setting">
+                    <label for="fontSize">Font Size:</label>
+                    <input type="range" id="fontSize" min="12" max="24" step="1">
+                </div>
+                <div class="setting">
+                    <label for="theme">Theme:</label>
+                    <select id="theme">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="sepia">Sepia</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="main">
+        <div class="toolbar">
+            <button id="menuButton" class="icon-button" aria-label="Menu"></button>
+            <div class="toolbar-center">
+                <button id="prevPage" class="icon-button" aria-label="Previous page"></button>
+                <span id="currentPage"></span>
+                <button id="nextPage" class="icon-button" aria-label="Next page"></button>
+            </div>
+            <div class="toolbar-right">
+                <button id="searchButton" class="icon-button" aria-label="Search"></button>
+                <button id="bookmarkButton" class="icon-button" aria-label="Bookmark"></button>
+            </div>
+        </div>
+
+        <div id="searchOverlay" class="search-overlay hidden">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search...">
+                <div id="searchResults"></div>
+            </div>
+        </div>
+
+        <div id="reader"></div>
+
+        <div id="filePrompt" class="file-prompt">
+            <div class="file-prompt-content">
+                <h2>Open EPUB Book</h2>
+                <input type="file" id="bookInput" accept=".epub">
+                <p>Or drag and drop an EPUB file here</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="icons.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
