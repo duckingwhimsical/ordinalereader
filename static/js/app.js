@@ -312,19 +312,47 @@ class EPUBReader {
 
     setupTouchNavigation() {
         let touchStartX = null;
+        let touchStartY = null;
+        let navTimeoutId = null;
+
+        const showNavigation = () => {
+            const prevButton = document.getElementById('prevPage');
+            const nextButton = document.getElementById('nextPage');
+            prevButton.classList.remove('opacity-0');
+            nextButton.classList.remove('opacity-0');
+            prevButton.classList.add('opacity-100');
+            nextButton.classList.add('opacity-100');
+
+            // Clear any existing timeout
+            if (navTimeoutId) clearTimeout(navTimeoutId);
+
+            // Hide navigation after 2 seconds
+            navTimeoutId = setTimeout(() => {
+                prevButton.classList.remove('opacity-100');
+                nextButton.classList.remove('opacity-100');
+                prevButton.classList.add('opacity-0');
+                nextButton.classList.add('opacity-0');
+            }, 2000);
+        };
 
         this.elements.reader.addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            showNavigation();
         });
 
         this.elements.reader.addEventListener('touchend', (e) => {
             if (!touchStartX) return;
 
             const touchEndX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchEndX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
 
-            if (Math.abs(diff) > 50) {
-                if (diff > 0) {
+            // Only navigate if the horizontal swipe is greater than vertical
+            // and meets the minimum threshold
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX > 0) {
                     this.nextPage();
                 } else {
                     this.prevPage();
@@ -332,6 +360,7 @@ class EPUBReader {
             }
 
             touchStartX = null;
+            touchStartY = null;
         });
     }
 
