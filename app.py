@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory, send_file, abort
 import os
 from pathlib import Path
 import logging
+import mimetypes
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,7 +19,7 @@ def setup_default_book():
         # Check for specific ebook.epub file
         default_book = assets_dir / 'ebook.epub'
         if default_book.exists():
-            logger.info('Found ebook.epub in attached_assets directory')
+            logger.info(f'Found ebook.epub in attached_assets directory: {default_book.absolute()}')
             return True
         else:
             logger.warning('ebook.epub not found in attached_assets directory')
@@ -44,7 +45,9 @@ def index():
 def serve_js(filename):
     try:
         logger.debug(f'Attempting to serve JS file: {filename}')
-        return send_file(os.path.join('static', 'js', filename))
+        file_path = os.path.join('static', 'js', filename)
+        logger.debug(f'Full JS file path: {file_path}')
+        return send_file(file_path, mimetype='application/javascript')
     except FileNotFoundError:
         logger.error(f'JS file not found: {filename}')
         abort(404)
@@ -59,9 +62,16 @@ def serve_epub(filename):
         # Always serve ebook.epub as default.epub
         if filename == 'default.epub':
             epub_path = os.path.join('attached_assets', 'ebook.epub')
+            epub_path = Path(epub_path).absolute()
+            logger.debug(f'Full EPUB file path: {epub_path}')
+
             if Path(epub_path).is_file():
                 logger.info(f'Successfully serving default EPUB file from: {epub_path}')
-                return send_file(epub_path)
+                return send_file(
+                    epub_path,
+                    mimetype='application/epub+zip',
+                    as_attachment=False
+                )
 
         logger.error(f'EPUB file not found: {filename}')
         abort(404)

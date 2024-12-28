@@ -1,13 +1,20 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Initializing EPUB reader...');
     window.reader = new EPUBReader();
+
     // Try to load default book
     try {
         console.log('Attempting to load default book...');
         const response = await fetch('/epub/default.epub');
+        console.log('Fetch response status:', response.status);
+
         if (response.ok) {
             console.log('Default book found, loading...');
             const blob = await response.blob();
+            console.log('Book blob size:', blob.size, 'bytes');
+
             try {
+                console.log('Starting book rendering process...');
                 await window.reader.loadBook(blob);
                 console.log('Book loaded successfully');
                 document.getElementById('loadingOverlay').classList.add('hidden');
@@ -31,6 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Define the EPUBReader class
 class EPUBReader {
     constructor() {
+        console.log('Setting up EPUB container:', {
+            container: this.book,
+            readerElement: document.getElementById('reader')
+        });
+
         this.book = null;
         this.rendition = null;
         this.elements = {
@@ -53,13 +65,56 @@ class EPUBReader {
             loadingProgress: document.getElementById('loadingProgress'),
             loadingStatus: document.getElementById('loadingStatus'),
             fontSize: document.getElementById('fontSize'),
-            theme: document.getElementById('theme')
+            theme: document.getElementById('theme'),
+            filePrompt: document.getElementById('filePrompt')
         };
 
         this.currentLocation = null;
         this.bookmarks = [];
         this.loadBookmarks();
         this.setupEventListeners();
+    }
+
+    async loadBook(file) {
+        try {
+            console.log('Starting book load process with file:', file.size, 'bytes');
+            this.elements.loadingOverlay.classList.remove('hidden');
+            this.elements.filePrompt.classList.add('hidden');
+            this.elements.loadingStatus.textContent = 'Reading file...';
+
+            const arrayBuffer = await file.arrayBuffer();
+            console.log('File converted to ArrayBuffer:', arrayBuffer.byteLength, 'bytes');
+
+            this.elements.loadingStatus.textContent = 'Creating EPUB instance...';
+            this.book = ePub(arrayBuffer);
+
+            this.elements.loadingStatus.textContent = 'Setting up renderer...';
+            this.rendition = this.book.renderTo(this.elements.reader, {
+                width: '100%',
+                height: '100%',
+                spread: 'none'
+            });
+
+            console.log('Waiting for book to be ready...');
+            this.elements.loadingStatus.textContent = 'Loading book content...';
+            await this.book.ready;
+
+            console.log('Displaying book...');
+            this.elements.loadingStatus.textContent = 'Rendering content...';
+            await this.rendition.display();
+
+            console.log('Setting up navigation...');
+            this.setupNavigation();
+            this.setupTableOfContents();
+            this.applyStoredSettings();
+
+            console.log('Book load complete');
+            this.elements.loadingOverlay.classList.add('hidden');
+        } catch (error) {
+            console.error('Error in loadBook:', error);
+            this.elements.loadingStatus.textContent = 'Error loading book: ' + error.message;
+            throw error;
+        }
     }
 
     toggleSidebar() {
@@ -84,42 +139,6 @@ class EPUBReader {
 
         // Log final state
         console.log('Animation complete. Final state:', this.elements.sidebar.classList.contains('-translate-x-0') ? 'open' : 'closed');
-    }
-
-    async loadBook(file) {
-        try {
-            this.elements.loadingOverlay.classList.remove('hidden');
-            this.elements.filePrompt.classList.add('hidden');
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    this.book = ePub(e.target.result);
-                    this.rendition = this.book.renderTo(this.elements.reader, {
-                        width: '100%',
-                        height: '100%',
-                        spread: 'none'
-                    });
-
-                    await this.book.ready;
-                    await this.rendition.display();
-
-                    this.setupNavigation();
-                    this.setupTableOfContents();
-                    this.applyStoredSettings();
-
-                    this.elements.loadingOverlay.classList.add('hidden');
-                } catch (error) {
-                    console.error('Error rendering book:', error);
-                    this.elements.loadingStatus.textContent = 'Error loading book';
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        } catch (error) {
-            console.error('Error loading book:', error);
-            this.elements.loadingStatus.textContent = 'Error loading book';
-        }
     }
 
     setupEventListeners() {
