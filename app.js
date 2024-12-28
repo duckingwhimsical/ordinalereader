@@ -279,13 +279,13 @@ class EPUBReader {
 
         if (existingBookmark >= 0) {
             this.bookmarks.splice(existingBookmark, 1);
-            this.elements.bookmarkButton.innerHTML = icons.bookmark;
+            this.elements.bookmarkButton.innerHTML = window.icons.bookmark;
         } else {
             this.bookmarks.push({
                 cfi,
                 text: this.rendition.getContents()[0].textContent.slice(0, 100) + '...'
             });
-            this.elements.bookmarkButton.innerHTML = icons.bookmarkFilled;
+            this.elements.bookmarkButton.innerHTML = window.icons.bookmarkFilled;
         }
 
         this.saveBookmarks();
@@ -320,7 +320,7 @@ class EPUBReader {
             div.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded flex items-center space-x-2';
 
             const icon = document.createElement('span');
-            icon.innerHTML = icons.bookmarkFilled;
+            icon.innerHTML = window.icons.bookmarkFilled;
             icon.className = 'w-4 h-4 text-blue-500';
 
             const text = document.createElement('span');
@@ -451,13 +451,7 @@ class EPUBReader {
             // Update bookmark button state
             const cfi = location.start.cfi;
             const isBookmarked = this.bookmarks.some(b => b.cfi === cfi);
-            this.elements.bookmarkButton.innerHTML = isBookmarked ? icons.bookmarkFilled : icons.bookmark;
+            this.elements.bookmarkButton.innerHTML = isBookmarked ? window.icons.bookmarkFilled : window.icons.bookmark;
         });
     }
 }
-
-// Placeholder for icons -  Replace with your actual icon definitions
-const icons = {
-    bookmark: '<svg></svg>', // Replace with your bookmark icon SVG
-    bookmarkFilled: '<svg></svg>' // Replace with your filled bookmark icon SVG
-};
