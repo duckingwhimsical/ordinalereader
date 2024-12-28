@@ -261,16 +261,12 @@ class EPUBReader {
                 if (isOpen) {
                     sidebar.classList.remove('open');
                 } else {
-                    sidebar.style.visibility = 'visible';
                     sidebar.classList.add('open');
                 }
 
                 // Reset toggle lock after transition
                 setTimeout(() => {
                     this._sidebarToggling = false;
-                    if (!sidebar.classList.contains('open')) {
-                        sidebar.style.visibility = 'hidden';
-                    }
                 }, 300);
             });
         } catch (error) {
@@ -662,7 +658,7 @@ class EPUBReader {
                     try {
                         const data = JSON.parse(bookmark);
                         return data && typeof data === 'object' &&
-                               data.cfi && typeof data.cfi === 'string';
+                            data.cfi && typeof data.cfi === 'string';
                     } catch (parseError) {
                         console.warn('Invalid bookmark entry:', bookmark, parseError);
                         return false;

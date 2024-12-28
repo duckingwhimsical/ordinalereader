@@ -50,17 +50,14 @@ body {
     height: 100%;
     background-color: var(--background-color);
     border-right: 1px solid var(--border-color);
-    transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+    transition: transform 0.3s ease;
     z-index: 1000;
     padding: 20px;
     overflow-y: auto;
-    visibility: hidden; /* Hide by default */
-    transform: translateX(0); /* Start position */
 }
 
 .sidebar.open {
     transform: translateX(var(--sidebar-width));
-    visibility: visible;
 }
 
 @media (max-width: 768px) {
