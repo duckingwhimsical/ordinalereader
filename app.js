@@ -247,17 +247,36 @@ class EPUBReader {
             return;
         }
 
-        // Force reflow to ensure transition works
-        sidebar.style.display = 'block';
-        sidebar.offsetHeight; // trigger reflow
+        // Prevent rapid toggling
+        if (this._sidebarToggling) {
+            console.log('Sidebar toggle in progress, skipping...');
+            return;
+        }
 
+        this._sidebarToggling = true;
+        console.log('Current sidebar state:', sidebar.classList.contains('open') ? 'open' : 'closed');
+
+        // Force reflow and handle transition
+        sidebar.style.display = 'block';
+        sidebar.style.transition = 'transform 0.3s ease-in-out';
+
+        // Toggle state
         const isOpen = sidebar.classList.contains('open');
+        console.log('Toggling sidebar from:', isOpen ? 'open' : 'closed');
+
         if (isOpen) {
             sidebar.classList.remove('open');
+            console.log('Sidebar closing...');
         } else {
             sidebar.classList.add('open');
+            console.log('Sidebar opening...');
         }
-        console.log('Sidebar state:', isOpen ? 'closing' : 'opening');
+
+        // Reset toggle lock after transition
+        setTimeout(() => {
+            this._sidebarToggling = false;
+            console.log('Sidebar toggle complete');
+        }, 300);
     }
 
     toggleSearch() {
@@ -772,11 +791,25 @@ class EPUBReader {
         }
 
         console.log('Setting up menu button...');
+
+        // Use a debounced click handler
+        let menuClickTimeout;
         menuButton.addEventListener('click', (e) => {
             console.log('Menu button clicked');
             e.preventDefault();
             e.stopPropagation();
+
+            // Debounce rapid clicks
+            if (menuClickTimeout) {
+                console.log('Debouncing rapid click');
+                return;
+            }
+
             this.toggleSidebar();
+
+            menuClickTimeout = setTimeout(() => {
+                menuClickTimeout = null;
+            }, 300);
         });
 
         // Close sidebar button
