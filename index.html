@@ -103,12 +103,20 @@
                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">Settings</h3>
                 <div class="space-y-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
                     <div class="space-y-2">
-                        <label for="fontSize" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Font Size</label>
-                        <input type="range" id="fontSize" min="12" max="24" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                        <label for="fontSize" class="block text-sm font-medium text-gray-700 dark:text-gray-300 sepia:text-sepia-500">Font Size</label>
+                        <input type="range" id="fontSize" min="12" max="24" step="1" 
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer 
+                            dark:bg-gray-600 sepia:bg-sepia-200
+                            accent-blue-500 dark:accent-blue-400 sepia:accent-sepia-400
+                            focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 sepia:focus:ring-sepia-400">
                     </div>
                     <div class="space-y-2">
-                        <label for="theme" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
-                        <select id="theme" class="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 transition-colors duration-200">
+                        <label for="theme" class="block text-sm font-medium text-gray-700 dark:text-gray-300 sepia:text-sepia-500">Theme</label>
+                        <select id="theme" class="block w-full px-3 py-2 bg-white dark:bg-gray-700 sepia:bg-sepia-100 
+                            border border-gray-300 dark:border-gray-600 sepia:border-sepia-300 
+                            rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 sepia:focus:ring-sepia-400 
+                            transition-colors duration-200
+                            text-gray-700 dark:text-gray-300 sepia:text-sepia-500">
                             <option value="light">Light</option>
                             <option value="dark">Dark</option>
                             <option value="sepia">Sepia</option>
