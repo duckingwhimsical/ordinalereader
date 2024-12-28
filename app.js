@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 class EPUBReader {
     constructor() {
-        console.log('Setting up EPUB Reader...');
         this.book = null;
         this.rendition = null;
         this.currentLocation = null;
@@ -767,6 +766,7 @@ class EPUBReader {
         // Close sidebar button
         if (this.elements.closeSidebar) {
             this.elements.closeSidebar.addEventListener('click', (e) => {
+                console.log('Close sidebar button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 this.toggleSidebar();
