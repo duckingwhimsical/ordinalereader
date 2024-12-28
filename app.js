@@ -7,6 +7,7 @@ class EPUBReader {
         this.bookmarks = new Set(this.loadBookmarks());
         this.currentPage = 0;
         this.totalPages = 0;
+        this.pageOffsets = new Map(); // Store page offsets for each chapter
 
         this.initializeElements();
         this.setupEventListeners();
@@ -150,23 +151,56 @@ class EPUBReader {
         // Generate locations before displaying content
         await this.book.locations.generate(1024);
 
+        // Calculate page offsets for continuous numbering
+        await this.calculatePageOffsets();
+
         this.loadTableOfContents();
         this.loadSavedPosition();
         this.elements.filePrompt.classList.add('hidden');
 
         this.rendition.on('relocated', (location) => {
             this.currentLocation = location;
-            this.currentPage = location.start.displayed.page;
-            this.totalPages = location.start.displayed.total;
-            this.savePosition();
             this.updatePageInfo();
             this.updateBookmarkButton();
+            this.savePosition();
         });
 
         await this.rendition.display();
         this.applySettings();
     }
 
+
+    async calculatePageOffsets() {
+        try {
+            this.pageOffsets.clear();
+            let cumulativePages = 0;
+
+            // Get all spine items (chapters)
+            const spineItems = this.book.spine.items;
+
+            // For each spine item, calculate its page count
+            for (let i = 0; i < spineItems.length; i++) {
+                const item = spineItems[i];
+                this.pageOffsets.set(item.href, cumulativePages);
+
+                // Display the item to get its page count
+                await this.rendition.display(item.href);
+                const displayed = this.rendition.currentLocation().start.displayed;
+
+                if (displayed) {
+                    cumulativePages += displayed.total;
+                }
+            }
+
+            this.totalPages = cumulativePages;
+            console.log('Total pages:', this.totalPages);
+
+            // Return to the beginning of the book
+            await this.rendition.display(spineItems[0].href);
+        } catch (error) {
+            console.error('Error calculating page offsets:', error);
+        }
+    }
 
     async loadTableOfContents() {
         const toc = await this.book.loaded.navigation;
@@ -211,7 +245,12 @@ class EPUBReader {
         }
 
         try {
-            this.elements.currentPage.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+            const location = this.currentLocation;
+            const chapterHref = location.start.href;
+            const pageOffset = this.pageOffsets.get(chapterHref) || 0;
+            const currentPage = pageOffset + location.start.displayed.page;
+
+            this.elements.currentPage.textContent = `Page ${currentPage} of ${this.totalPages}`;
         } catch (error) {
             console.error('Error displaying page numbers:', error);
             this.elements.currentPage.textContent = 'Loading...';
@@ -290,9 +329,11 @@ class EPUBReader {
             div.classList.add('bookmark-item');
 
             try {
-                // Get the page number for this CFI using EPUB.js
+                // Get the page number for this CFI using the offset system
                 const location = this.rendition.location(cfi);
-                const page = location?.start?.displayed?.page || 'Unknown';
+                const chapterHref = location?.start?.href;
+                const pageOffset = this.pageOffsets.get(chapterHref) || 0;
+                const page = pageOffset + (location?.start?.displayed?.page || 0);
                 div.textContent = `Page ${page}`;
             } catch (error) {
                 console.error('Error calculating bookmark page:', error);
