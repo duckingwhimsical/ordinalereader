@@ -403,22 +403,58 @@ class EPUBReader {
         this.saveSettings();
     }
 
+    updateTheme() {
+        const theme = this.elements.theme.value;
+        this.settings.theme = theme;
+        document.body.setAttribute('data-theme', theme);
+
+        if (this.rendition) {
+            // Define theme styles for the book content
+            const computedStyle = getComputedStyle(document.body);
+            const textColor = computedStyle.getPropertyValue('--text-color').trim();
+            const backgroundColor = computedStyle.getPropertyValue('--background-color').trim();
+
+            // Register theme with EPUB.js
+            this.rendition.themes.register({
+                light: {
+                    body: {
+                        color: '#333333',
+                        background: '#ffffff'
+                    }
+                },
+                dark: {
+                    body: {
+                        color: '#ffffff',
+                        background: '#1a1a1a'
+                    }
+                },
+                sepia: {
+                    body: {
+                        color: '#5b4636',
+                        background: '#f4ecd8'
+                    }
+                }
+            });
+
+            // Apply the selected theme
+            this.rendition.themes.select(theme);
+        }
+
+        this.saveSettings();
+    }
+
     applySettings() {
         if (!this.rendition) return;
 
+        // Set the theme on the document body
         document.body.setAttribute('data-theme', this.settings.theme);
+        this.elements.theme.value = this.settings.theme;
 
         // Apply font size using EPUB.js's native method
         this.rendition.themes.fontSize(`${this.settings.fontSize}px`);
 
-        // Apply theme colors
-        this.rendition.themes.register('theme', {
-            body: {
-                color: getComputedStyle(document.body).getPropertyValue('--text-color'),
-                background: getComputedStyle(document.body).getPropertyValue('--background-color')
-            }
-        });
-        this.rendition.themes.select('theme');
+        // Apply the theme using updateTheme
+        this.updateTheme();
     }
 }
 
