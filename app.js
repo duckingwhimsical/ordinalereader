@@ -303,11 +303,14 @@ class EPUBReader {
     }
 
     toggleBookmark() {
-        if (!this.currentLocation) return;
+        if (!this.currentLocation) {
+            console.error('Cannot create bookmark: No current location');
+            return;
+        }
 
         const cfi = this.currentLocation.start.cfi;
         if (!cfi) {
-            console.error('Invalid location for bookmark');
+            console.error('Cannot create bookmark: Invalid CFI');
             return;
         }
 
@@ -328,25 +331,44 @@ class EPUBReader {
                 return null;
             };
 
-            const chapter = findChapterInToc(toc, spineItem.href) || 
-                          { label: `Chapter ${spineItem.index + 1}` };
+            const chapter = findChapterInToc(toc, spineItem.href);
+            console.log('Current chapter:', chapter);
 
             // Get text content around the current position
             const contents = this.rendition.getContents();
-            const range = this.book.range(cfi);
-            const textPreview = range ? 
-                range.toString().slice(0, 100) : 
-                contents[0]?.content.querySelector('p')?.textContent?.slice(0, 100) || 
-                'No preview available';
+            if (!contents || contents.length === 0) {
+                throw new Error('No content available for bookmark');
+            }
+
+            let textPreview = 'No preview available';
+            try {
+                // Try to get text using range first
+                const range = this.book.range(cfi);
+                if (range) {
+                    textPreview = range.toString().slice(0, 100);
+                }
+
+                // Fallback to getting text from current paragraph
+                if (!textPreview || textPreview === 'No preview available') {
+                    const currentElement = contents[0].content.querySelector('p, div, span');
+                    if (currentElement) {
+                        textPreview = currentElement.textContent.slice(0, 100);
+                    }
+                }
+            } catch (previewError) {
+                console.error('Error getting text preview:', previewError);
+            }
 
             const bookmarkData = {
                 cfi: cfi,
                 href: spineItem.href,
-                chapterTitle: chapter.label,
+                chapterTitle: chapter ? chapter.label : `Chapter ${spineItem.index + 1}`,
                 timestamp: new Date().toISOString(),
                 text: textPreview,
                 page: this.getCurrentPage()
             };
+
+            console.log('Creating bookmark with data:', bookmarkData);
 
             const bookmarkString = JSON.stringify(bookmarkData);
 
@@ -361,32 +383,61 @@ class EPUBReader {
             this.renderBookmarks();
 
         } catch (error) {
-            console.error('Error toggling bookmark:', error);
+            console.error('Error toggling bookmark:', error, {
+                location: this.currentLocation,
+                spineItem: this.book.spine.get(this.currentLocation.start.href),
+                tocAvailable: !!this.book.navigation?.toc
+            });
         }
     }
 
     hasBookmark(cfi) {
-        return Array.from(this.bookmarks).some(bookmark => {
-            try {
-                const data = JSON.parse(bookmark);
-                return data.cfi === cfi;
-            } catch {
-                return false;
-            }
-        });
+        if (!cfi) {
+            console.error('Cannot check bookmark: Invalid CFI');
+            return false;
+        }
+
+        try {
+            return Array.from(this.bookmarks).some(bookmark => {
+                try {
+                    const data = JSON.parse(bookmark);
+                    return data.cfi === cfi;
+                } catch (parseError) {
+                    console.error('Error parsing bookmark:', parseError);
+                    return false;
+                }
+            });
+        } catch (error) {
+            console.error('Error checking bookmark:', error);
+            return false;
+        }
     }
 
     removeBookmark(cfi) {
-        const bookmarkToRemove = Array.from(this.bookmarks).find(bookmark => {
-            try {
-                const data = JSON.parse(bookmark);
-                return data.cfi === cfi;
-            } catch {
-                return false;
+        if (!cfi) {
+            console.error('Cannot remove bookmark: Invalid CFI');
+            return;
+        }
+
+        try {
+            const bookmarkToRemove = Array.from(this.bookmarks).find(bookmark => {
+                try {
+                    const data = JSON.parse(bookmark);
+                    return data.cfi === cfi;
+                } catch (parseError) {
+                    console.error('Error parsing bookmark during removal:', parseError);
+                    return false;
+                }
+            });
+
+            if (bookmarkToRemove) {
+                console.log('Removing bookmark:', JSON.parse(bookmarkToRemove));
+                this.bookmarks.delete(bookmarkToRemove);
+            } else {
+                console.warn('Bookmark not found for removal:', cfi);
             }
-        });
-        if (bookmarkToRemove) {
-            this.bookmarks.delete(bookmarkToRemove);
+        } catch (error) {
+            console.error('Error removing bookmark:', error);
         }
     }
 
