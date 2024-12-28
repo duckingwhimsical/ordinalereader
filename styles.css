@@ -60,6 +60,18 @@ body {
     transform: translateX(var(--sidebar-width));
 }
 
+@media (max-width: 768px) {
+    .sidebar {
+        width: 90%;
+        max-width: var(--sidebar-width);
+        left: -90%;
+    }
+
+    .sidebar.open {
+        transform: translateX(100%);
+    }
+}
+
 .sidebar-header {
     display: flex;
     justify-content: space-between;
@@ -289,15 +301,6 @@ body {
     .search-result-excerpt {
         font-size: 1em;
         line-height: 1.5;
-    }
-    .sidebar {
-        width: 90%;
-        max-width: var(--sidebar-width);
-        left: -90%;
-    }
-
-    .sidebar.open {
-        transform: translateX(100%);
     }
 }
 
