@@ -196,8 +196,38 @@ class EPUBReader {
     }
 
     updatePageInfo() {
-        const current = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
-        this.elements.currentPage.textContent = `${Math.round(current * 100)}%`;
+        if (!this.book || !this.currentLocation) return;
+
+        // Get the current page number based on spine position and CFI
+        const spineItems = this.book.spine.items;
+        let currentPage = 1;
+
+        // Calculate current page by counting spine items before current location
+        for (let i = 0; i < spineItems.length; i++) {
+            const item = spineItems[i];
+            if (item.href === this.currentLocation.start.href) {
+                // Add the pages from previous spine items
+                break;
+            }
+            // Estimate pages in this spine item based on its content length
+            currentPage += Math.ceil(item.document.documentElement.textContent.length / 1000);
+        }
+
+        // Add partial progress within current spine item
+        const currentSpineItem = spineItems.find(item => item.href === this.currentLocation.start.href);
+        if (currentSpineItem) {
+            const itemProgress = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
+            const itemPages = Math.ceil(currentSpineItem.document.documentElement.textContent.length / 1000);
+            currentPage += Math.floor(itemProgress * itemPages);
+        }
+
+        // Calculate total pages
+        let totalPages = 0;
+        spineItems.forEach(item => {
+            totalPages += Math.ceil(item.document.documentElement.textContent.length / 1000);
+        });
+
+        this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
     }
 
     prevPage() {
@@ -270,7 +300,20 @@ class EPUBReader {
         this.bookmarks.forEach(cfi => {
             const div = document.createElement('div');
             div.classList.add('bookmark-item');
-            div.textContent = `Page ${this.book.locations.percentageFromCfi(cfi) * 100}%`;
+
+            // Calculate page number for bookmark
+            const spineItems = this.book.spine.items;
+            let bookmarkPage = 1;
+
+            for (let i = 0; i < spineItems.length; i++) {
+                const item = spineItems[i];
+                if (this.book.locations.percentageFromCfi(cfi) <= this.book.locations.percentageFromCfi(item.href)) {
+                    break;
+                }
+                bookmarkPage += Math.ceil(item.document.documentElement.textContent.length / 1000);
+            }
+
+            div.textContent = `Page ${bookmarkPage}`;
             div.addEventListener('click', () => {
                 this.rendition.display(cfi);
                 this.toggleSidebar();
