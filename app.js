@@ -227,9 +227,13 @@ class EPUBReader {
     }
 
     toggleSearch() {
-        this.elements.searchOverlay.classList.toggle('open');
-        if (this.elements.searchOverlay.classList.contains('open')) {
+        if (!this.elements.searchOverlay) return;
+
+        const isOpen = this.elements.searchOverlay.classList.toggle('open');
+        if (isOpen) {
+            this.elements.searchInput.value = '';
             this.elements.searchInput.focus();
+            this.elements.searchResults.innerHTML = '<div class="search-placeholder">Enter at least 3 characters to search</div>';
         }
     }
 
@@ -724,20 +728,32 @@ class EPUBReader {
         this.elements.prevPage.addEventListener('click', () => this.prevPage());
         this.elements.nextPage.addEventListener('click', () => this.nextPage());
 
-        this.elements.searchButton.addEventListener('click', () => this.toggleSearch());
-        this.elements.searchInput.addEventListener('input', () => this.handleSearch());
+        // Fix search button and input event listeners
+        this.elements.searchButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleSearch();
+        });
 
-        this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
+        // Debounce search input to improve performance
+        let searchTimeout;
+        this.elements.searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.handleSearch(), 300);
+        });
 
-        this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
-        this.elements.theme.addEventListener('change', () => this.updateTheme());
-
-        this.elements.bookInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/epub+zip') {
-                await this.loadBook(file);
+        // Close search overlay when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.elements.searchOverlay.classList.contains('open') &&
+                !this.elements.searchOverlay.contains(e.target) &&
+                !this.elements.searchButton.contains(e.target)) {
+                this.toggleSearch();
             }
         });
+
+        this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
+        this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
+        this.elements.theme.addEventListener('change', () => this.updateTheme());
 
         this.setupDragAndDrop();
         this.setupTouchNavigation();

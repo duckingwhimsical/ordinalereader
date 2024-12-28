@@ -2,7 +2,7 @@
     --primary-color: #2196f3;
     --background-color: #ffffff;
     --text-color: #333333;
-    --sidebar-width: 300px;
+    --sidebar-width: 280px;
     --toolbar-height: 50px;
     --border-color: rgba(0, 0, 0, 0.1);
     --hover-color: rgba(128, 128, 128, 0.1);
@@ -157,7 +157,7 @@ body {
     position: fixed;
     top: var(--toolbar-height);
     right: 0;
-    width: 300px;
+    width: 280px;
     background-color: var(--background-color);
     border-left: 1px solid var(--border-color);
     height: calc(100vh - var(--toolbar-height));
@@ -290,6 +290,15 @@ body {
         font-size: 1em;
         line-height: 1.5;
     }
+    .sidebar {
+        width: 90%;
+        max-width: var(--sidebar-width);
+        left: -90%;
+    }
+
+    .sidebar.open {
+        transform: translateX(100%);
+    }
 }
 
 .hidden {
@@ -316,8 +325,9 @@ body {
 /* Responsive design */
 @media (max-width: 768px) {
     .sidebar {
-        width: 100%;
-        left: -100%;
+        width: 90%;
+        max-width: var(--sidebar-width);
+        left: -90%;
     }
 
     .sidebar.open {
