@@ -34,8 +34,8 @@ body {
 
 .sidebar {
     position: fixed;
-    left: -var(--sidebar-width);
     top: 0;
+    left: calc(-1 * var(--sidebar-width));
     width: var(--sidebar-width);
     height: 100%;
     background-color: var(--background-color);
