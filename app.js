@@ -463,6 +463,7 @@ class EPUBReader {
 
             // Apply the selected theme
             this.rendition.themes.select(theme);
+            this.rendition.themes.override(theme, themes[theme]);
 
             // Force refresh the current page to ensure theme is applied
             const currentLocation = this.currentLocation?.start?.cfi;
