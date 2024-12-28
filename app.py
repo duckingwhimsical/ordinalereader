@@ -2,7 +2,6 @@ from flask import Flask, send_from_directory, send_file, abort
 import os
 from pathlib import Path
 import logging
-import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,18 +17,13 @@ def setup_default_book():
 
         # Check if default book exists
         default_book = assets_dir / 'default.epub'
-        if not default_book.exists():
+        if default_book.exists():
+            logger.info('Default book found in attached_assets directory')
+        else:
             logger.warning('Default book not found in attached_assets directory')
-            # Copy the sample book from the project root if it exists
-            sample_book = Path('sample.epub')
-            if sample_book.exists():
-                logger.info('Copying sample book to attached_assets directory')
-                shutil.copy(sample_book, default_book)
-                logger.info('Successfully copied sample book')
-            else:
-                logger.warning('No sample book available to copy')
+
     except Exception as e:
-        logger.error(f'Error setting up default book: {str(e)}')
+        logger.error(f'Error checking for default book: {str(e)}')
 
 @app.route('/')
 def index():
@@ -62,6 +56,7 @@ def serve_epub(filename):
         logger.debug(f'Attempting to serve EPUB file: {filename}')
         epub_path = os.path.join('attached_assets', filename)
         if Path(epub_path).is_file():
+            logger.info(f'Successfully serving EPUB file: {epub_path}')
             return send_file(epub_path)
         logger.error(f'EPUB file not found: {epub_path}')
         abort(404)
