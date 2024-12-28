@@ -16,11 +16,19 @@ def setup_default_book():
         assets_dir.mkdir(exist_ok=True)
 
         # Check if default book exists
-        default_book = assets_dir / 'default.epub'
-        if default_book.exists():
-            logger.info('Default book found in attached_assets directory')
+        default_book = next(assets_dir.glob('*.epub'), None)
+        if default_book and default_book.exists():
+            logger.info(f'Default book found: {default_book.name}')
+            # Create a symlink to make it accessible as default.epub
+            target_link = assets_dir / 'default.epub'
+            if not target_link.exists():
+                try:
+                    os.symlink(default_book, target_link)
+                    logger.info('Created symlink to default book')
+                except Exception as e:
+                    logger.error(f'Failed to create symlink: {str(e)}')
         else:
-            logger.warning('Default book not found in attached_assets directory')
+            logger.warning('No EPUB books found in attached_assets directory')
 
     except Exception as e:
         logger.error(f'Error checking for default book: {str(e)}')
