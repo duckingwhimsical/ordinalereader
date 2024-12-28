@@ -324,19 +324,89 @@ class EPUBReader {
         const query = this.elements.searchInput.value.trim();
         if (!query || !this.book) return;
 
-        const results = await this.book.search(query);
-        this.elements.searchResults.innerHTML = '';
+        try {
+            // Clear previous results
+            this.elements.searchResults.innerHTML = '';
 
-        results.forEach(result => {
-            const div = document.createElement('div');
-            div.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded';
-            div.textContent = result.excerpt;
-            div.addEventListener('click', () => {
-                this.rendition.display(result.cfi);
-                this.toggleSearch();
+            // Show loading state
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'p-2 text-gray-600 dark:text-gray-400';
+            loadingDiv.textContent = 'Searching...';
+            this.elements.searchResults.appendChild(loadingDiv);
+
+            // Check if locations are generated
+            if (!this.book.locations || !this.book.locations.length()) {
+                console.log('Generating locations for search...');
+                await this.book.locations.generate();
+            }
+
+            // Perform the search using spine
+            const results = [];
+            const spine = this.book.spine.spineItems;
+
+            for (const item of spine) {
+                if (!item.document) continue;
+
+                const text = item.document.documentElement.textContent;
+                const position = text.toLowerCase().indexOf(query.toLowerCase());
+
+                if (position !== -1) {
+                    // Get surrounding context
+                    const start = Math.max(0, position - 40);
+                    const end = Math.min(text.length, position + query.length + 40);
+                    const excerpt = text.substring(start, end).replace(/\s+/g, ' ').trim();
+
+                    results.push({
+                        cfi: item.cfiBase,
+                        excerpt: '...' + excerpt + '...',
+                        percentage: (spine.indexOf(item) / spine.length) * 100
+                    });
+                }
+            }
+
+            // Remove loading state
+            this.elements.searchResults.innerHTML = '';
+
+            // Display results
+            if (results.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'p-2 text-gray-600 dark:text-gray-400';
+                noResults.textContent = 'No results found';
+                this.elements.searchResults.appendChild(noResults);
+                return;
+            }
+
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded';
+
+                const excerptSpan = document.createElement('span');
+                excerptSpan.className = 'block text-sm text-gray-800 dark:text-gray-200';
+                excerptSpan.textContent = result.excerpt;
+
+                const locationSpan = document.createElement('span');
+                locationSpan.className = 'block text-xs text-gray-600 dark:text-gray-400 mt-1';
+                locationSpan.textContent = `Location: ${Math.round(result.percentage)}%`;
+
+                div.appendChild(excerptSpan);
+                div.appendChild(locationSpan);
+
+                div.addEventListener('click', () => {
+                    this.rendition.display(result.cfi);
+                    this.toggleSearch();
+                });
+
+                this.elements.searchResults.appendChild(div);
             });
-            this.elements.searchResults.appendChild(div);
-        });
+
+        } catch (error) {
+            console.error('Search error:', error);
+            this.elements.searchResults.innerHTML = '';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'p-2 text-red-600 dark:text-red-400';
+            errorDiv.textContent = 'An error occurred while searching';
+            this.elements.searchResults.appendChild(errorDiv);
+        }
     }
 
     toggleBookmark() {
