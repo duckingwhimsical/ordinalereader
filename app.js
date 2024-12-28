@@ -241,11 +241,23 @@ class EPUBReader {
 
     toggleSidebar() {
         console.log('Toggling sidebar...');
-        if (!this.elements.sidebar) {
+        const sidebar = this.elements.sidebar;
+        if (!sidebar) {
             console.error('Sidebar element not found');
             return;
         }
-        this.elements.sidebar.classList.toggle('open');
+
+        // Force reflow to ensure transition works
+        sidebar.style.display = 'block';
+        sidebar.offsetHeight; // trigger reflow
+
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+            sidebar.classList.remove('open');
+        } else {
+            sidebar.classList.add('open');
+        }
+        console.log('Sidebar state:', isOpen ? 'closing' : 'opening');
     }
 
     toggleSearch() {
@@ -752,16 +764,20 @@ class EPUBReader {
     setupEventListeners() {
         console.log('Setting up event listeners...');
 
-        // Menu button click handler
-        if (this.elements.menuButton) {
-            console.log('Setting up menu button...');
-            this.elements.menuButton.addEventListener('click', (e) => {
-                console.log('Menu button clicked');
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleSidebar();
-            });
+        // Menu button click handler - Improved error handling and logging
+        const menuButton = this.elements.menuButton;
+        if (!menuButton) {
+            console.error('Menu button not found in DOM');
+            return;
         }
+
+        console.log('Setting up menu button...');
+        menuButton.addEventListener('click', (e) => {
+            console.log('Menu button clicked');
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleSidebar();
+        });
 
         // Close sidebar button
         if (this.elements.closeSidebar) {
