@@ -12,30 +12,37 @@ class EPUBReader {
     }
 
     initializeElements() {
+        // Initialize all required elements
         this.elements = {
-            sidebar: document.getElementById('sidebar'),
-            menuButton: document.getElementById('menuButton'),
-            closeSidebar: document.getElementById('closeSidebar'),
-            prevPage: document.getElementById('prevPage'),
-            nextPage: document.getElementById('nextPage'),
-            searchButton: document.getElementById('searchButton'),
-            bookmarkButton: document.getElementById('bookmarkButton'),
-            searchOverlay: document.getElementById('searchOverlay'),
-            searchInput: document.getElementById('searchInput'),
-            searchResults: document.getElementById('searchResults'),
-            bookInput: document.getElementById('bookInput'),
-            filePrompt: document.getElementById('filePrompt'),
-            reader: document.getElementById('reader'),
-            fontSize: document.getElementById('fontSize'),
-            theme: document.getElementById('theme'),
-            currentPage: document.getElementById('currentPage'),
-            toc: document.getElementById('toc'),
-            bookmarks: document.getElementById('bookmarks'),
-            // Add loading overlay elements
-            loadingOverlay: document.getElementById('loadingOverlay'),
-            loadingProgress: document.getElementById('loadingProgress'),
-            loadingStatus: document.getElementById('loadingStatus')
+            sidebar: document.querySelector('#sidebar'),
+            menuButton: document.querySelector('#menuButton'),
+            closeSidebar: document.querySelector('#closeSidebar'),
+            prevPage: document.querySelector('#prevPage'),
+            nextPage: document.querySelector('#nextPage'),
+            searchButton: document.querySelector('#searchButton'),
+            bookmarkButton: document.querySelector('#bookmarkButton'),
+            searchOverlay: document.querySelector('#searchOverlay'),
+            searchInput: document.querySelector('#searchInput'),
+            searchResults: document.querySelector('#searchResults'),
+            bookInput: document.querySelector('#bookInput'),
+            filePrompt: document.querySelector('#filePrompt'),
+            reader: document.querySelector('#reader'),
+            fontSize: document.querySelector('#fontSize'),
+            theme: document.querySelector('#theme'),
+            currentPage: document.querySelector('#currentPage'),
+            toc: document.querySelector('#toc'),
+            bookmarks: document.querySelector('#bookmarks'),
+            loadingOverlay: document.querySelector('#loadingOverlay'),
+            loadingProgress: document.querySelector('#loadingProgress'),
+            loadingStatus: document.querySelector('#loadingStatus')
         };
+
+        // Verify critical elements exist
+        Object.entries(this.elements).forEach(([key, element]) => {
+            if (!element) {
+                console.error(`Required element not found: #${key}`);
+            }
+        });
     }
 
     async loadDefaultBook() {
@@ -223,6 +230,7 @@ class EPUBReader {
     }
 
     toggleSidebar() {
+        if (!this.elements.sidebar) return;
         this.elements.sidebar.classList.toggle('open');
     }
 
@@ -722,38 +730,70 @@ class EPUBReader {
         this.updateTheme();
     }
     setupEventListeners() {
-        this.elements.menuButton.addEventListener('click', () => this.toggleSidebar());
-        this.elements.closeSidebar.addEventListener('click', () => this.toggleSidebar());
+        // Menu button click handler
+        if (this.elements.menuButton) {
+            this.elements.menuButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar();
+            });
+        }
 
-        this.elements.prevPage.addEventListener('click', () => this.prevPage());
-        this.elements.nextPage.addEventListener('click', () => this.nextPage());
+        // Close sidebar button
+        if (this.elements.closeSidebar) {
+            this.elements.closeSidebar.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar();
+            });
+        }
 
-        // Fix search button and input event listeners
-        this.elements.searchButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggleSearch();
-        });
+        // Navigation buttons
+        if (this.elements.prevPage) {
+            this.elements.prevPage.addEventListener('click', () => this.prevPage());
+        }
+        if (this.elements.nextPage) {
+            this.elements.nextPage.addEventListener('click', () => this.nextPage());
+        }
 
-        // Debounce search input to improve performance
-        let searchTimeout;
-        this.elements.searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => this.handleSearch(), 300);
-        });
+        // Search functionality
+        if (this.elements.searchButton) {
+            this.elements.searchButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSearch();
+            });
+        }
+
+        // Debounced search input handler
+        if (this.elements.searchInput) {
+            let searchTimeout;
+            this.elements.searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => this.handleSearch(), 300);
+            });
+        }
 
         // Close search overlay when clicking outside
         document.addEventListener('click', (e) => {
-            if (this.elements.searchOverlay.classList.contains('open') &&
+            if (this.elements.searchOverlay && 
+                this.elements.searchOverlay.classList.contains('open') &&
                 !this.elements.searchOverlay.contains(e.target) &&
                 !this.elements.searchButton.contains(e.target)) {
                 this.toggleSearch();
             }
         });
 
-        this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
-        this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
-        this.elements.theme.addEventListener('change', () => this.updateTheme());
+        // Other buttons
+        if (this.elements.bookmarkButton) {
+            this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
+        }
+        if (this.elements.fontSize) {
+            this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
+        }
+        if (this.elements.theme) {
+            this.elements.theme.addEventListener('change', () => this.updateTheme());
+        }
 
         this.setupDragAndDrop();
         this.setupTouchNavigation();
