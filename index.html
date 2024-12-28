@@ -114,7 +114,7 @@
                         <label for="theme" class="block text-sm font-medium text-gray-700 dark:text-gray-300 sepia:text-sepia-500">Theme</label>
                         <select id="theme" class="block w-full px-3 py-2 bg-white dark:bg-gray-700 sepia:bg-sepia-100 
                             border border-gray-300 dark:border-gray-600 sepia:border-sepia-300 
-                            rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 sepia:focus:ring-sepia-400 
+                            rounded-lg shadow-sm focus:ring-2 focus:ring:blue-500 sepia:focus:ring-sepia-400 
                             transition-colors duration-200
                             text-gray-700 dark:text-gray-300 sepia:text-sepia-500">
                             <option value="light">Light</option>
@@ -152,16 +152,16 @@
         <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
 
         <!-- Navigation Buttons -->
-        <div class="fixed inset-y-0 left-4 flex items-center">
-            <button id="prevPage" class="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110">
-                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="fixed inset-y-0 left-0 flex items-center w-16 group">
+            <button id="prevPage" class="w-full h-full flex items-center justify-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all duration-200">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
         </div>
-        <div class="fixed inset-y-0 right-4 flex items-center">
-            <button id="nextPage" class="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110">
-                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="fixed inset-y-0 right-0 flex items-center w-16 group">
+            <button id="nextPage" class="w-full h-full flex items-center justify-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all duration-200">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </button>
