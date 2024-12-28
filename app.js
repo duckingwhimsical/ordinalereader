@@ -144,6 +144,9 @@ class EPUBReader {
             spread: 'none'
         });
 
+        // Generate locations before displaying content
+        await this.book.locations.generate(1024);
+
         this.loadTableOfContents();
         this.loadSavedPosition();
         this.elements.filePrompt.classList.add('hidden');
@@ -196,29 +199,20 @@ class EPUBReader {
     }
 
     updatePageInfo() {
-        if (!this.book || !this.currentLocation) return;
-
-        // Get the current page number based on spine position
-        const spineItems = this.book.spine.items;
-        let currentPage = 1;
-        let totalPages = 0;
+        if (!this.book || !this.currentLocation || !this.book.locations.length()) return;
 
         try {
-            // Calculate current page by counting spine items before current location
-            for (let i = 0; i < spineItems.length; i++) {
-                const item = spineItems[i];
-                if (!item) continue;
+            // Get the total locations in the book
+            const totalLocations = this.book.locations.length();
 
-                // Use a simpler page estimation based on spine item index
-                if (item.href === this.currentLocation.start.href) {
-                    currentPage += Math.floor(this.book.locations.percentageFromCfi(this.currentLocation.start.cfi) * 30);
-                    break;
-                }
-                currentPage += 30; // Assume approximately 30 pages per spine item
-            }
+            // Get current location index
+            const currentLocationIndex = this.book.locations.locationFromCfi(this.currentLocation.start.cfi);
 
-            // Calculate total pages based on spine items
-            totalPages = spineItems.length * 30; // Approximate total pages
+            // Calculate current page (1-based) and total pages
+            // Use a reasonable page size (250 words per page)
+            const LOCATIONS_PER_PAGE = 2; // Each location is roughly 1024 chars, so 2 locations ≈ 1 page
+            const currentPage = Math.ceil(currentLocationIndex / LOCATIONS_PER_PAGE) + 1;
+            const totalPages = Math.ceil(totalLocations / LOCATIONS_PER_PAGE);
 
             this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
         } catch (error) {
@@ -299,22 +293,15 @@ class EPUBReader {
             div.classList.add('bookmark-item');
 
             try {
-                // Calculate page number for bookmark using spine position
-                const spineItems = this.book.spine.items;
-                let bookmarkPage = 1;
-
-                for (let i = 0; i < spineItems.length; i++) {
-                    const item = spineItems[i];
-                    if (!item) continue;
-
-                    if (this.book.locations.percentageFromCfi(cfi) <= this.book.locations.percentageFromCfi(item.href)) {
-                        bookmarkPage += Math.floor(this.book.locations.percentageFromCfi(cfi) * 30);
-                        break;
-                    }
-                    bookmarkPage += 30;
+                // Calculate page number for bookmark using locations
+                if (this.book.locations.length()) {
+                    const locationIndex = this.book.locations.locationFromCfi(cfi);
+                    const LOCATIONS_PER_PAGE = 2;
+                    const bookmarkPage = Math.ceil(locationIndex / LOCATIONS_PER_PAGE) + 1;
+                    div.textContent = `Page ${bookmarkPage}`;
+                } else {
+                    div.textContent = 'Bookmark';
                 }
-
-                div.textContent = `Page ${bookmarkPage}`;
             } catch (error) {
                 console.error('Error calculating bookmark page:', error);
                 div.textContent = 'Bookmark';
