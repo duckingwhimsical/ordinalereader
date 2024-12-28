@@ -382,30 +382,8 @@ class EPUBReader {
         this.settings.fontSize = size;
 
         if (this.rendition) {
-            // Use EPUB.js's built-in font size adjustment
+            // Use only EPUB.js's built-in font size adjustment
             this.rendition.themes.fontSize(`${size}px`);
-
-            // Update the stylesheet with more specific font adjustments
-            this.rendition.themes.register({
-                body: {
-                    'font-size': `${size}px !important`,
-                    'line-height': `${Math.floor(size * 1.5)}px !important`
-                },
-                'p': {
-                    'font-size': `${size}px !important`,
-                    margin: `${Math.floor(size * 0.8)}px 0`
-                },
-                'h1': { 'font-size': `${size * 1.8}px !important` },
-                'h2': { 'font-size': `${size * 1.6}px !important` },
-                'h3': { 'font-size': `${size * 1.4}px !important` },
-                'h4': { 'font-size': `${size * 1.2}px !important` }
-            });
-
-            // Force refresh the current page to apply changes immediately
-            const currentLocation = this.currentLocation?.start?.cfi;
-            if (currentLocation) {
-                this.rendition.display(currentLocation);
-            }
         }
 
         this.saveSettings();
@@ -423,7 +401,10 @@ class EPUBReader {
 
         document.body.setAttribute('data-theme', this.settings.theme);
 
+        // Apply font size using EPUB.js's native method
         this.rendition.themes.fontSize(`${this.settings.fontSize}px`);
+
+        // Apply theme colors
         this.rendition.themes.register('theme', {
             body: {
                 color: getComputedStyle(document.body).getPropertyValue('--text-color'),
