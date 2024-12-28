@@ -5,10 +5,26 @@ class EPUBReader {
         this.currentLocation = null;
         this.settings = this.loadSettings();
         this.bookmarks = new Set(this.loadBookmarks());
-        
+
         this.initializeElements();
         this.setupEventListeners();
         this.applySettings();
+
+        // Automatically load the default book
+        this.loadDefaultBook();
+    }
+
+    // Add new method to load default book
+    async loadDefaultBook() {
+        try {
+            const response = await fetch('/epub/Fear-and-Liquidity-in-Crypto-Vegas-Generic.epub');
+            const blob = await response.blob();
+            await this.loadBook(blob);
+        } catch (error) {
+            console.error('Error loading default book:', error);
+            // Show file prompt if default book fails to load
+            this.elements.filePrompt.classList.remove('hidden');
+        }
     }
 
     initializeElements() {
@@ -72,7 +88,7 @@ class EPUBReader {
         document.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0 && files[0].type === 'application/epub+zip') {
                 this.loadBook(files[0]);
@@ -82,17 +98,17 @@ class EPUBReader {
 
     setupTouchNavigation() {
         let touchStartX = null;
-        
+
         this.elements.reader.addEventListener('touchstart', (e) => {
-            touchStart X = e.touches[0].clientX;
+            touchStartX = e.touches[0].clientX;
         });
 
         this.elements.reader.addEventListener('touchend', (e) => {
-            if (!touchStart X) return;
-            
-            const touchEnd X = e.changedTouches[0].clientX;
-            const diff = touchStart X - touchEnd X;
-            
+            if (!touchStartX) return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const diff = touchStartX - touchEndX;
+
             if (Math.abs(diff) > 50) {
                 if (diff > 0) {
                     this.nextPage();
@@ -100,8 +116,8 @@ class EPUBReader {
                     this.prevPage();
                 }
             }
-            
-            touchStart X = null;
+
+            touchStartX = null;
         });
     }
 
@@ -121,7 +137,7 @@ class EPUBReader {
     async loadBook(file) {
         this.book = ePub(file);
         await this.book.ready;
-        
+
         this.rendition = this.book.renderTo('reader', {
             width: '100%',
             height: '100%',
@@ -131,7 +147,7 @@ class EPUBReader {
         this.loadTableOfContents();
         this.loadSavedPosition();
         this.elements.filePrompt.classList.add('hidden');
-        
+
         this.rendition.on('relocated', (location) => {
             this.currentLocation = location;
             this.savePosition();
@@ -147,7 +163,7 @@ class EPUBReader {
         const toc = await this.book.loaded.navigation;
         const tocElement = this.elements.toc;
         tocElement.innerHTML = '';
-        
+
         toc.toc.forEach(chapter => {
             const item = document.createElement('div');
             item.classList.add('toc-item');
@@ -197,7 +213,7 @@ class EPUBReader {
 
         const results = await this.book.search(query);
         this.elements.searchResults.innerHTML = '';
-        
+
         results.forEach(result => {
             const div = document.createElement('div');
             div.classList.add('search-result');
@@ -224,14 +240,14 @@ class EPUBReader {
 
     updateBookmarkButton() {
         const cfi = this.currentLocation?.start.cfi;
-        this.elements.bookmarkButton.innerHTML = 
+        this.elements.bookmarkButton.innerHTML =
             this.bookmarks.has(cfi) ? icons.bookmarkFilled : icons.bookmark;
     }
 
     renderBookmarks() {
         const container = this.elements.bookmarks;
         container.innerHTML = '';
-        
+
         this.bookmarks.forEach(cfi => {
             const div = document.createElement('div');
             div.classList.add('bookmark-item');
@@ -291,7 +307,7 @@ class EPUBReader {
         if (!this.rendition) return;
 
         document.body.setAttribute('data-theme', this.settings.theme);
-        
+
         this.rendition.themes.fontSize(`${this.settings.fontSize}px`);
         this.rendition.themes.register('theme', {
             body: {
