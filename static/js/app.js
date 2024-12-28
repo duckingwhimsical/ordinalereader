@@ -80,15 +80,15 @@ class EPUBReader {
             console.log('Starting book load process with file:', file.size, 'bytes');
             this.elements.loadingOverlay.classList.remove('hidden');
             this.elements.filePrompt.classList.add('hidden');
-            this.elements.loadingStatus.textContent = 'Reading file...';
+            this.updateLoadingProgress(0, 'Reading file...');
 
             const arrayBuffer = await file.arrayBuffer();
             console.log('File converted to ArrayBuffer:', arrayBuffer.byteLength, 'bytes');
+            this.updateLoadingProgress(20, 'Creating EPUB instance...');
 
-            this.elements.loadingStatus.textContent = 'Creating EPUB instance...';
             this.book = ePub(arrayBuffer);
+            this.updateLoadingProgress(40, 'Setting up renderer...');
 
-            this.elements.loadingStatus.textContent = 'Setting up renderer...';
             this.rendition = this.book.renderTo(this.elements.reader, {
                 width: '100%',
                 height: '100%',
@@ -96,24 +96,40 @@ class EPUBReader {
             });
 
             console.log('Waiting for book to be ready...');
-            this.elements.loadingStatus.textContent = 'Loading book content...';
+            this.updateLoadingProgress(60, 'Loading book content...');
             await this.book.ready;
 
             console.log('Displaying book...');
-            this.elements.loadingStatus.textContent = 'Rendering content...';
+            this.updateLoadingProgress(80, 'Rendering content...');
             await this.rendition.display();
 
             console.log('Setting up navigation...');
-            this.setupNavigation();
-            this.setupTableOfContents();
+            this.updateLoadingProgress(90, 'Finalizing...');
+            await this.setupNavigation();
+            await this.setupTableOfContents();
             this.applyStoredSettings();
 
             console.log('Book load complete');
-            this.elements.loadingOverlay.classList.add('hidden');
+            this.updateLoadingProgress(100, 'Complete!');
+
+            // Delay hiding the overlay slightly to show the complete state
+            setTimeout(() => {
+                this.elements.loadingOverlay.classList.add('hidden');
+            }, 500);
         } catch (error) {
             console.error('Error in loadBook:', error);
             this.elements.loadingStatus.textContent = 'Error loading book: ' + error.message;
+            this.elements.loadingProgress.style.backgroundColor = '#ef4444'; // red-500
             throw error;
+        }
+    }
+
+    updateLoadingProgress(percent, status) {
+        if (this.elements.loadingProgress) {
+            this.elements.loadingProgress.style.width = `${percent}%`;
+        }
+        if (this.elements.loadingStatus) {
+            this.elements.loadingStatus.textContent = status;
         }
     }
 

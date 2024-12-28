@@ -55,6 +55,20 @@ def serve_js(filename):
         logger.error(f'Error serving JS file {filename}: {str(e)}')
         abort(500)
 
+@app.route('/css/<path:filename>')
+def serve_css(filename):
+    try:
+        logger.debug(f'Attempting to serve CSS file: {filename}')
+        file_path = os.path.join('static', 'css', filename)
+        logger.debug(f'Full CSS file path: {file_path}')
+        return send_file(file_path, mimetype='text/css')
+    except FileNotFoundError:
+        logger.error(f'CSS file not found: {filename}')
+        abort(404)
+    except Exception as e:
+        logger.error(f'Error serving CSS file {filename}: {str(e)}')
+        abort(500)
+
 @app.route('/epub/<path:filename>')
 def serve_epub(filename):
     try:
