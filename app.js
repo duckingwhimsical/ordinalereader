@@ -155,7 +155,7 @@ class EPUBReader {
         await this.calculatePageOffsets();
 
         this.loadTableOfContents();
-        this.loadSavedPosition();
+        this.loadBookmarks();
         this.elements.filePrompt.classList.add('hidden');
 
         this.rendition.on('relocated', (location) => {
@@ -303,46 +303,70 @@ class EPUBReader {
     }
 
     toggleBookmark() {
-        const cfi = this.currentLocation.start.cfi;
-        // Get chapter title from the spine item's package document
-        const spineItem = this.book.spine.get(this.currentLocation.start.href);
-        const chapterTitle = spineItem?.index ? 
-            (this.book.navigation?.toc?.[spineItem.index]?.label || `Chapter ${spineItem.index + 1}`) : 
-            'Unknown Chapter';
+        if (!this.currentLocation) return;
 
-        if (this.bookmarks.has(cfi)) {
-            this.bookmarks.delete(cfi);
-        } else {
-            // Store bookmark with metadata
+        const cfi = this.currentLocation.start.cfi;
+        if (!cfi) {
+            console.error('Invalid location for bookmark');
+            return;
+        }
+
+        try {
+            // Get current section/chapter information
+            const spineItem = this.book.spine.get(this.currentLocation.start.href);
+            const toc = this.book.navigation?.toc || [];
+
+            // Find the current chapter in TOC
+            const findChapterInToc = (items, href) => {
+                for (let item of items) {
+                    if (item.href === href) return item;
+                    if (item.subitems) {
+                        const found = findChapterInToc(item.subitems, href);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const chapter = findChapterInToc(toc, spineItem.href) || 
+                          { label: `Chapter ${spineItem.index + 1}` };
+
+            // Get text content around the current position
+            const contents = this.rendition.getContents();
+            const range = this.book.range(cfi);
+            const textPreview = range ? 
+                range.toString().slice(0, 100) : 
+                contents[0]?.content.querySelector('p')?.textContent?.slice(0, 100) || 
+                'No preview available';
+
             const bookmarkData = {
                 cfi: cfi,
-                chapterTitle: chapterTitle,
+                href: spineItem.href,
+                chapterTitle: chapter.label,
                 timestamp: new Date().toISOString(),
-                text: this.rendition.getContents()[0].content.querySelector('p')?.textContent?.slice(0, 100) || 'No preview available',
+                text: textPreview,
                 page: this.getCurrentPage()
             };
-            this.bookmarks.add(JSON.stringify(bookmarkData));
-        }
-        this.saveBookmarks();
-        this.updateBookmarkButton();
-        this.renderBookmarks();
-    }
 
-    getCurrentPage() {
-        try {
-            const location = this.currentLocation;
-            const chapterHref = location.start.href;
-            const pageOffset = this.pageOffsets.get(chapterHref) || 0;
-            return pageOffset + location.start.displayed.page;
+            const bookmarkString = JSON.stringify(bookmarkData);
+
+            if (this.hasBookmark(cfi)) {
+                this.removeBookmark(cfi);
+            } else {
+                this.bookmarks.add(bookmarkString);
+            }
+
+            this.saveBookmarks();
+            this.updateBookmarkButton();
+            this.renderBookmarks();
+
         } catch (error) {
-            console.error('Error getting current page:', error);
-            return 0;
+            console.error('Error toggling bookmark:', error);
         }
     }
 
-    updateBookmarkButton() {
-        const cfi = this.currentLocation?.start.cfi;
-        const isBookmarked = Array.from(this.bookmarks).some(bookmark => {
+    hasBookmark(cfi) {
+        return Array.from(this.bookmarks).some(bookmark => {
             try {
                 const data = JSON.parse(bookmark);
                 return data.cfi === cfi;
@@ -350,6 +374,26 @@ class EPUBReader {
                 return false;
             }
         });
+    }
+
+    removeBookmark(cfi) {
+        const bookmarkToRemove = Array.from(this.bookmarks).find(bookmark => {
+            try {
+                const data = JSON.parse(bookmark);
+                return data.cfi === cfi;
+            } catch {
+                return false;
+            }
+        });
+        if (bookmarkToRemove) {
+            this.bookmarks.delete(bookmarkToRemove);
+        }
+    }
+
+    updateBookmarkButton() {
+        if (!this.currentLocation?.start?.cfi) return;
+
+        const isBookmarked = this.hasBookmark(this.currentLocation.start.cfi);
         this.elements.bookmarkButton.innerHTML = isBookmarked ? icons.bookmarkFilled : icons.bookmark;
     }
 
@@ -389,13 +433,13 @@ class EPUBReader {
                 title.classList.add('bookmark-title');
                 title.textContent = bookmark.chapterTitle;
 
-                const page = document.createElement('div');
-                page.classList.add('bookmark-page');
-                page.textContent = `Page ${bookmark.page}`;
-
                 const preview = document.createElement('div');
                 preview.classList.add('bookmark-preview');
                 preview.textContent = bookmark.text;
+
+                const page = document.createElement('div');
+                page.classList.add('bookmark-page');
+                page.textContent = `Page ${bookmark.page}`;
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.classList.add('bookmark-delete');
@@ -403,7 +447,7 @@ class EPUBReader {
                 deleteBtn.innerHTML = '×';
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.bookmarks.delete(JSON.stringify(bookmark));
+                    this.removeBookmark(bookmark.cfi);
                     this.saveBookmarks();
                     this.renderBookmarks();
                     this.updateBookmarkButton();
@@ -416,9 +460,13 @@ class EPUBReader {
                 div.appendChild(preview);
                 div.appendChild(page);
 
-                div.addEventListener('click', () => {
-                    this.rendition.display(bookmark.cfi);
-                    this.toggleSidebar();
+                div.addEventListener('click', async () => {
+                    try {
+                        await this.rendition.display(bookmark.cfi);
+                        this.toggleSidebar();
+                    } catch (error) {
+                        console.error('Error navigating to bookmark:', error);
+                    }
                 });
 
                 bookmarksList.appendChild(div);
@@ -427,22 +475,49 @@ class EPUBReader {
         container.appendChild(bookmarksList);
     }
 
+    loadBookmarks() {
+        try {
+            const savedBookmarks = localStorage.getItem('epub-reader-bookmarks');
+            if (!savedBookmarks) {
+                this.bookmarks = new Set();
+                return;
+            }
+
+            const bookmarks = JSON.parse(savedBookmarks);
+            this.bookmarks = new Set(bookmarks);
+            this.renderBookmarks();
+        } catch (error) {
+            console.error('Error loading bookmarks:', error);
+            this.bookmarks = new Set();
+        }
+    }
+
+    saveBookmarks() {
+        try {
+            localStorage.setItem('epub-reader-bookmarks', JSON.stringify([...this.bookmarks]));
+        } catch (error) {
+            console.error('Error saving bookmarks:', error);
+        }
+    }
+
+    getCurrentPage() {
+        try {
+            const location = this.currentLocation;
+            const chapterHref = location.start.href;
+            const pageOffset = this.pageOffsets.get(chapterHref) || 0;
+            return pageOffset + location.start.displayed.page;
+        } catch (error) {
+            console.error('Error getting current page:', error);
+            return 0;
+        }
+    }
+
     loadSettings() {
         return JSON.parse(localStorage.getItem('epub-reader-settings') || '{"fontSize": 16, "theme": "light"}');
     }
 
     saveSettings() {
         localStorage.setItem('epub-reader-settings', JSON.stringify(this.settings));
-    }
-
-    loadBookmarks() {
-        const bookmarks = JSON.parse(localStorage.getItem('epub-reader-bookmarks') || '[]');
-        // Convert array back to Set
-        return new Set(bookmarks);
-    }
-
-    saveBookmarks() {
-        localStorage.setItem('epub-reader-bookmarks', JSON.stringify([...this.bookmarks]));
     }
 
     loadSavedPosition() {
@@ -466,9 +541,6 @@ class EPUBReader {
             // Use only EPUB.js's built-in font size adjustment
             this.rendition.themes.fontSize(`${size}px`);
 
-            // Store current location before regenerating
-            const currentCfi = this.currentLocation?.start?.cfi;
-
             // Regenerate locations to ensure correct page counting
             await this.book.locations.generate(1024);
 
@@ -476,9 +548,7 @@ class EPUBReader {
             await this.calculatePageOffsets();
 
             // Return to the previous location
-            if (currentCfi) {
-                await this.rendition.display(currentCfi);
-            }
+
         }
 
         this.saveSettings();
