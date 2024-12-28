@@ -107,6 +107,14 @@ class EPUBReader {
             this.updateLoadingProgress(90, 'Finalizing...');
             await this.setupNavigation();
             await this.setupTableOfContents();
+
+            console.log('Generating book locations...');
+            this.updateLoadingProgress(95, 'Generating book locations...');
+
+            // Generate locations for better navigation
+            await this.book.locations.generate(1000);
+            console.log('Book locations generated');
+
             this.applyStoredSettings();
 
             console.log('Book load complete');
@@ -521,9 +529,18 @@ class EPUBReader {
         if (!this.rendition) return;
 
         this.rendition.on('relocated', (location) => {
-            const progress = this.book.locations.percentageFromCfi(location.start.cfi);
-            const percentage = Math.round(progress * 100);
-            this.elements.currentPage.textContent = `${percentage}%`;
+            // Calculate percentage based on CFI if locations are available
+            if (this.book.locations && this.book.locations.length()) {
+                const progress = this.book.locations.percentageFromCfi(location.start.cfi);
+                const percentage = Math.round(progress * 100);
+                this.elements.currentPage.textContent = `${percentage}%`;
+            } else {
+                // Fallback to a simpler calculation if locations aren't generated
+                const currentPage = this.book.packaging.metadata.spine.indexOf(location.start.cfi) + 1;
+                const totalPages = this.book.packaging.metadata.spine.length;
+                const percentage = Math.round((currentPage / totalPages) * 100);
+                this.elements.currentPage.textContent = `~${percentage}%`;
+            }
 
             // Update bookmark button state
             const cfi = location.start.cfi;
