@@ -423,7 +423,7 @@ class EPUBReader {
             },
             dark: {
                 body: {
-                    color: '#ffffff',
+                    color: '#e2e8f0', // Changed to a lighter color for better contrast
                     background: '#1a1a1a'
                 }
             },
@@ -438,8 +438,10 @@ class EPUBReader {
         // Register and apply theme to EPUB content
         this.rendition.themes.default({
             ...themes[theme].body,
-            'a:link': { color: theme === 'dark' ? '#80b3ff' : '#0066cc' },
-            'a:visited': { color: theme === 'dark' ? '#b380ff' : '#8000ff' }
+            'a:link': { color: theme === 'dark' ? '#93c5fd' : '#0066cc' }, // Lighter blue for dark mode
+            'a:visited': { color: theme === 'dark' ? '#c4b5fd' : '#8000ff' }, // Lighter purple for dark mode
+            'p, div, span': { color: themes[theme].body.color }, // Ensure text elements inherit the correct color
+            'h1, h2, h3, h4, h5, h6': { color: themes[theme].body.color } // Ensure headers inherit the correct color
         });
 
         // Update system theme
