@@ -342,23 +342,50 @@ class EPUBReader {
     toggleBookmark() {
         if (!this.rendition) return;
 
-        const currentLocation = this.rendition.currentLocation();
-        const cfi = currentLocation.start.cfi;
-        const existingBookmark = this.bookmarks.findIndex(b => b.cfi === cfi);
+        try {
+            const currentLocation = this.rendition.currentLocation();
+            if (!currentLocation || !currentLocation.start || !currentLocation.start.cfi) {
+                console.error('Invalid location data for bookmark');
+                return;
+            }
 
-        if (existingBookmark >= 0) {
-            this.bookmarks.splice(existingBookmark, 1);
+            const cfi = currentLocation.start.cfi;
+            const existingBookmark = this.bookmarks.findIndex(b => b.cfi === cfi);
+
+            // Get preview text safely
+            let previewText = 'Bookmark';
+            try {
+                const contents = this.rendition.getContents();
+                if (contents && contents.length > 0 && contents[0].documentElement) {
+                    // Get text content from the document element
+                    const text = contents[0].documentElement.textContent || '';
+                    previewText = text.trim().slice(0, 100) + (text.length > 100 ? '...' : '');
+                }
+            } catch (error) {
+                console.warn('Could not extract preview text:', error);
+                // Use chapter title or a generic label if available
+                previewText = this.book?.navigation?.toc?.[0]?.label || 'Bookmarked location';
+            }
+
+            if (existingBookmark >= 0) {
+                this.bookmarks.splice(existingBookmark, 1);
+                this.elements.bookmarkButton.innerHTML = window.icons.bookmark;
+            } else {
+                this.bookmarks.push({
+                    cfi,
+                    text: previewText
+                });
+                this.elements.bookmarkButton.innerHTML = window.icons.bookmarkFilled;
+            }
+
+            this.saveBookmarks();
+            this.renderBookmarks();
+
+        } catch (error) {
+            console.error('Error toggling bookmark:', error);
+            // Reset bookmark button state
             this.elements.bookmarkButton.innerHTML = window.icons.bookmark;
-        } else {
-            this.bookmarks.push({
-                cfi,
-                text: this.rendition.getContents()[0].textContent.slice(0, 100) + '...'
-            });
-            this.elements.bookmarkButton.innerHTML = window.icons.bookmarkFilled;
         }
-
-        this.saveBookmarks();
-        this.renderBookmarks();
     }
 
     saveBookmarks() {
