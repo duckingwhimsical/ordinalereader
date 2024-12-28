@@ -6,6 +6,7 @@
     --toolbar-height: 50px;
     --border-color: rgba(0, 0, 0, 0.1);
     --hover-color: rgba(128, 128, 128, 0.1);
+    --text-color-rgb: 51, 51, 51;
 }
 
 /* Dark theme */
@@ -14,6 +15,7 @@
     --text-color: #ffffff;
     --border-color: rgba(255, 255, 255, 0.1);
     --hover-color: rgba(255, 255, 255, 0.1);
+    --text-color-rgb: 255, 255, 255;
 }
 
 /* Sepia theme */
@@ -22,6 +24,7 @@
     --text-color: #5b4636;
     --border-color: rgba(91, 70, 54, 0.1);
     --hover-color: rgba(91, 70, 54, 0.1);
+    --text-color-rgb: 91, 70, 54;
 }
 
 * {
@@ -370,7 +373,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
     padding: 0 20px;
     z-index: 100;
 }
@@ -390,4 +392,31 @@ body {
 
 .bottom-controls .icon-button:hover {
     background-color: var(--hover-color);
+}
+
+
+/* Side navigation buttons */
+.side-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(var(--text-color-rgb), 0.1);
+    border: none;
+    border-radius: 8px;
+    padding: 20px 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    z-index: 100;
+}
+
+.side-nav:hover {
+    background-color: rgba(var(--text-color-rgb), 0.2);
+}
+
+.left-nav {
+    left: 20px;
+}
+
+.right-nav {
+    right: 20px;
 }
