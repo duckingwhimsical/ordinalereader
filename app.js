@@ -247,28 +247,26 @@ class EPUBReader {
             return;
         }
 
-        // Prevent rapid toggling
-        if (this._sidebarToggling) {
-            console.log('Sidebar toggle in progress, skipping...');
-            return;
-        }
-
         try {
-            this._sidebarToggling = true;
             const isOpen = sidebar.classList.contains('open');
 
+            // Add transition class before toggling
+            sidebar.style.transition = 'transform 0.3s ease';
+
+            // Use requestAnimationFrame for smooth animation
             requestAnimationFrame(() => {
                 if (isOpen) {
                     sidebar.classList.remove('open');
                 } else {
                     sidebar.classList.add('open');
                 }
-
-                // Reset toggle lock after transition
-                setTimeout(() => {
-                    this._sidebarToggling = false;
-                }, 300);
             });
+
+            // Clean up transition after animation
+            setTimeout(() => {
+                this._sidebarToggling = false;
+            }, 300);
+
         } catch (error) {
             console.error('Error toggling sidebar:', error);
             this._sidebarToggling = false;
