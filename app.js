@@ -67,7 +67,6 @@ class EPUBReader {
             this.updateLoadingStatus('Preparing renderer...');
             this.updateLoadingProgress(30);
 
-            // Add container class for animations
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = '<div class="epub-container"></div>';
 
@@ -81,7 +80,6 @@ class EPUBReader {
             this.updateLoadingStatus('Generating page locations...');
             this.updateLoadingProgress(50);
 
-            // Generate locations with more sections for better accuracy
             await this.book.locations.generate(2048);
 
             this.updateLoadingStatus('Loading content...');
@@ -205,7 +203,7 @@ class EPUBReader {
                 content.style.transform = 'translateX(3%)';
             }
 
-            // Wait for animation
+            // Wait for animation to start
             await new Promise(resolve => setTimeout(resolve, 250));
 
             // Navigate to previous page
@@ -215,7 +213,7 @@ class EPUBReader {
             this.currentLocation = this.rendition.currentLocation();
             this.updatePageInfo();
 
-            // Reset animations
+            // Reset animations after navigation
             setTimeout(() => {
                 container.classList.remove('page-turn-left');
                 if (content) {
@@ -239,7 +237,7 @@ class EPUBReader {
                 content.style.transform = 'translateX(-3%)';
             }
 
-            // Wait for animation
+            // Wait for animation to start
             await new Promise(resolve => setTimeout(resolve, 250));
 
             // Navigate to next page
@@ -249,7 +247,7 @@ class EPUBReader {
             this.currentLocation = this.rendition.currentLocation();
             this.updatePageInfo();
 
-            // Reset animations
+            // Reset animations after navigation
             setTimeout(() => {
                 container.classList.remove('page-turn-right');
                 if (content) {

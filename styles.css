@@ -435,3 +435,8 @@ body {
         transform: rotateY(15deg) translateX(5%);
     }
 }
+
+/* Ensure iframe content transitions smoothly */
+#reader iframe {
+    transition: transform 0.3s ease-out;
+}
