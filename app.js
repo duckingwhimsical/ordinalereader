@@ -67,7 +67,11 @@ class EPUBReader {
             this.updateLoadingStatus('Preparing renderer...');
             this.updateLoadingProgress(30);
 
-            this.rendition = this.book.renderTo('reader', {
+            // Add container class for animations
+            const readerElement = document.getElementById('reader');
+            readerElement.innerHTML = '<div class="epub-container"></div>';
+
+            this.rendition = this.book.renderTo('reader .epub-container', {
                 width: '100%',
                 height: '100%',
                 spread: 'none',
@@ -187,27 +191,71 @@ class EPUBReader {
         }
     }
 
-    prevPage() {
+    async prevPage() {
         if (this.rendition) {
-            this.rendition.prev().then(() => {
-                // Ensure page info is updated after navigation
-                this.currentLocation = this.rendition.currentLocation();
-                this.updatePageInfo();
-            }).catch(error => {
-                console.error('Error navigating to previous page:', error);
-            });
+            const container = document.querySelector('.epub-container');
+            if (!container) return;
+
+            // Add animation classes
+            container.classList.add('page-turn-left');
+
+            // Create parallax effect
+            const content = container.querySelector('iframe');
+            if (content) {
+                content.style.transform = 'translateX(3%)';
+            }
+
+            // Wait for animation
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            // Navigate to previous page
+            await this.rendition.prev();
+
+            // Update current location and page info
+            this.currentLocation = this.rendition.currentLocation();
+            this.updatePageInfo();
+
+            // Reset animations
+            setTimeout(() => {
+                container.classList.remove('page-turn-left');
+                if (content) {
+                    content.style.transform = '';
+                }
+            }, 500);
         }
     }
 
-    nextPage() {
+    async nextPage() {
         if (this.rendition) {
-            this.rendition.next().then(() => {
-                // Ensure page info is updated after navigation
-                this.currentLocation = this.rendition.currentLocation();
-                this.updatePageInfo();
-            }).catch(error => {
-                console.error('Error navigating to next page:', error);
-            });
+            const container = document.querySelector('.epub-container');
+            if (!container) return;
+
+            // Add animation classes
+            container.classList.add('page-turn-right');
+
+            // Create parallax effect
+            const content = container.querySelector('iframe');
+            if (content) {
+                content.style.transform = 'translateX(-3%)';
+            }
+
+            // Wait for animation
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            // Navigate to next page
+            await this.rendition.next();
+
+            // Update current location and page info
+            this.currentLocation = this.rendition.currentLocation();
+            this.updatePageInfo();
+
+            // Reset animations
+            setTimeout(() => {
+                container.classList.remove('page-turn-right');
+                if (content) {
+                    content.style.transform = '';
+                }
+            }, 500);
         }
     }
 
