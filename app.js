@@ -210,8 +210,11 @@ class EPUBReader {
 
             // Calculate current page (1-based) and total pages
             // Use a reasonable page size (250 words per page)
-            const LOCATIONS_PER_PAGE = 2; // Each location is roughly 1024 chars, so 2 locations ≈ 1 page
-            const currentPage = Math.ceil(currentLocationIndex / LOCATIONS_PER_PAGE) + 1;
+            const WORDS_PER_LOCATION = 150; // Each location is roughly 1024 chars ≈ 150 words
+            const WORDS_PER_PAGE = 250; // Standard page size
+            const LOCATIONS_PER_PAGE = WORDS_PER_PAGE / WORDS_PER_LOCATION;
+
+            const currentPage = Math.ceil((currentLocationIndex + 1) / LOCATIONS_PER_PAGE);
             const totalPages = Math.ceil(totalLocations / LOCATIONS_PER_PAGE);
 
             this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
@@ -296,8 +299,10 @@ class EPUBReader {
                 // Calculate page number for bookmark using locations
                 if (this.book.locations.length()) {
                     const locationIndex = this.book.locations.locationFromCfi(cfi);
-                    const LOCATIONS_PER_PAGE = 2;
-                    const bookmarkPage = Math.ceil(locationIndex / LOCATIONS_PER_PAGE) + 1;
+                    const WORDS_PER_LOCATION = 150;
+                    const WORDS_PER_PAGE = 250;
+                    const LOCATIONS_PER_PAGE = WORDS_PER_PAGE / WORDS_PER_LOCATION;
+                    const bookmarkPage = Math.ceil((locationIndex + 1) / LOCATIONS_PER_PAGE);
                     div.textContent = `Page ${bookmarkPage}`;
                 } else {
                     div.textContent = 'Bookmark';
