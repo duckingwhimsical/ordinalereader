@@ -738,6 +738,8 @@ class EPUBReader {
         if (!this.rendition) return;
 
         this.rendition.on('relocated', (location) => {
+            console.log('Navigation relocated:', location);
+
             // Store the current location whenever it changes
             if (location && location.start) {
                 localStorage.setItem('epub-last-position', location.start.cfi);
@@ -749,11 +751,26 @@ class EPUBReader {
                 const percentage = Math.round(progress * 100);
                 this.elements.currentPage.textContent = `${percentage}%`;
             } else {
-                // Fallback to a simpler calculation if locations aren't generated
-                const currentPage = this.book.packaging.metadata.spine.indexOf(location.start.cfi) + 1;
-                const totalPages = this.book.packaging.metadata.spine.length;
-                const percentage = Math.round((currentPage / totalPages) * 100);
-                this.elements.currentPage.textContent = `~${percentage}%`;
+                // Safer fallback calculation
+                try {
+                    if (this.book && this.book.spine) {
+                        const spineItems = this.book.spine.items;
+                        const currentIndex = spineItems.findIndex(item =>
+                            location.start.href.includes(item.href || '')
+                        );
+                        if (currentIndex !== -1) {
+                            const percentage = Math.round(((currentIndex + 1) / spineItems.length) * 100);
+                            this.elements.currentPage.textContent = `~${percentage}%`;
+                        } else {
+                            this.elements.currentPage.textContent = 'Reading...';
+                        }
+                    } else {
+                        this.elements.currentPage.textContent = 'Loading...';
+                    }
+                } catch (error) {
+                    console.error('Error calculating page position:', error);
+                    this.elements.currentPage.textContent = 'Reading...';
+                }
             }
 
             // Update bookmark button state
