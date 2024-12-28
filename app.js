@@ -5,6 +5,8 @@ class EPUBReader {
         this.currentLocation = null;
         this.settings = this.loadSettings();
         this.bookmarks = new Set(this.loadBookmarks());
+        this.pageMap = new Map(); // Store pre-calculated page numbers
+        this.totalPages = 0;
 
         this.initializeElements();
         this.setupEventListeners();
@@ -147,6 +149,9 @@ class EPUBReader {
         // Generate locations before displaying content
         await this.book.locations.generate(1024);
 
+        // Pre-calculate page numbers
+        await this.calculatePageMapping();
+
         this.loadTableOfContents();
         this.loadSavedPosition();
         this.elements.filePrompt.classList.add('hidden');
@@ -160,6 +165,33 @@ class EPUBReader {
 
         await this.rendition.display();
         this.applySettings();
+    }
+
+    async calculatePageMapping() {
+        if (!this.book || !this.book.locations.length()) return;
+
+        try {
+            const WORDS_PER_PAGE = 250; // Standard page size
+            const totalLocations = this.book.locations.length();
+            this.pageMap.clear();
+
+            // Get the text content of each location and calculate its page number
+            for (let i = 0; i < totalLocations; i++) {
+                const cfi = this.book.locations.cfiFromLocation(i);
+                if (!cfi) continue;
+
+                // Calculate page number based on location index
+                const pageNum = Math.ceil((i + 1) / (WORDS_PER_PAGE / 150)) // 150 words per location
+                this.pageMap.set(cfi, pageNum);
+            }
+
+            // Set total pages
+            this.totalPages = Math.max(...this.pageMap.values());
+            console.log(`Book loaded with ${this.totalPages} pages`);
+        } catch (error) {
+            console.error('Error pre-calculating page numbers:', error);
+            this.totalPages = 0;
+        }
     }
 
     async loadTableOfContents() {
@@ -199,27 +231,16 @@ class EPUBReader {
     }
 
     updatePageInfo() {
-        if (!this.book || !this.currentLocation || !this.book.locations.length()) return;
+        if (!this.book || !this.currentLocation || !this.pageMap.size) {
+            this.elements.currentPage.textContent = 'Loading...';
+            return;
+        }
 
         try {
-            // Get the total locations in the book
-            const totalLocations = this.book.locations.length();
-
-            // Get current location index
-            const currentLocationIndex = this.book.locations.locationFromCfi(this.currentLocation.start.cfi);
-
-            // Calculate current page (1-based) and total pages
-            // Use a reasonable page size (250 words per page)
-            const WORDS_PER_LOCATION = 150; // Each location is roughly 1024 chars ≈ 150 words
-            const WORDS_PER_PAGE = 250; // Standard page size
-            const LOCATIONS_PER_PAGE = WORDS_PER_PAGE / WORDS_PER_LOCATION;
-
-            const currentPage = Math.ceil((currentLocationIndex + 1) / LOCATIONS_PER_PAGE);
-            const totalPages = Math.ceil(totalLocations / LOCATIONS_PER_PAGE);
-
-            this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
+            const currentPage = this.pageMap.get(this.currentLocation.start.cfi) || 1;
+            this.elements.currentPage.textContent = `Page ${currentPage} of ${this.totalPages}`;
         } catch (error) {
-            console.error('Error calculating page numbers:', error);
+            console.error('Error displaying page numbers:', error);
             this.elements.currentPage.textContent = 'Loading...';
         }
     }
@@ -296,17 +317,8 @@ class EPUBReader {
             div.classList.add('bookmark-item');
 
             try {
-                // Calculate page number for bookmark using locations
-                if (this.book.locations.length()) {
-                    const locationIndex = this.book.locations.locationFromCfi(cfi);
-                    const WORDS_PER_LOCATION = 150;
-                    const WORDS_PER_PAGE = 250;
-                    const LOCATIONS_PER_PAGE = WORDS_PER_PAGE / WORDS_PER_LOCATION;
-                    const bookmarkPage = Math.ceil((locationIndex + 1) / LOCATIONS_PER_PAGE);
-                    div.textContent = `Page ${bookmarkPage}`;
-                } else {
-                    div.textContent = 'Bookmark';
-                }
+                const bookmarkPage = this.pageMap.get(cfi) || 'Unknown';
+                div.textContent = `Page ${bookmarkPage}`;
             } catch (error) {
                 console.error('Error calculating bookmark page:', error);
                 div.textContent = 'Bookmark';
