@@ -169,31 +169,28 @@ class EPUBReader {
         }
 
         try {
-            // Make sure locations are generated
-            if (!this.book.locations || !this.book.locations._locations) {
-                console.log('Locations not yet generated');
-                this.elements.currentPage.textContent = 'Generating page numbers...';
+            // Check if the book has built-in page numbers
+            const pageList = this.book.package.metadata.page_list;
+
+            if (!pageList) {
+                console.log('No built-in page numbers available in this EPUB');
+                this.elements.currentPage.textContent = 'No page numbers available';
                 return;
             }
 
-            // Get the percentage through the book
-            const percentage = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
+            // Find the current page using the CFI
+            const currentCfi = this.currentLocation.start.cfi;
+            const currentPage = pageList.find(page => page.cfi === currentCfi);
 
-            // Convert percentage to page number
-            const currentPage = Math.ceil((percentage * this.book.locations.length()));
-            const totalPages = this.book.locations.length();
+            if (currentPage) {
+                this.elements.currentPage.textContent = `Page ${currentPage.value}`;
+            } else {
+                this.elements.currentPage.textContent = 'Page number not available';
+            }
 
-            console.log('Page calculation:', {
-                cfi: this.currentLocation.start.cfi,
-                percentage,
-                currentPage,
-                totalPages
-            });
-
-            this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
         } catch (error) {
-            console.error('Error displaying page numbers:', error);
-            this.elements.currentPage.textContent = 'Loading...';
+            console.error('Error accessing page numbers:', error);
+            this.elements.currentPage.textContent = 'Page numbers not available';
         }
     }
 
