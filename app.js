@@ -242,8 +242,10 @@ class EPUBReader {
     toggleSidebar() {
         console.log('Toggling sidebar...');
         const sidebar = this.elements.sidebar;
-        if (!sidebar) {
-            console.error('Sidebar element not found');
+        const main = document.getElementById('main');
+
+        if (!sidebar || !main) {
+            console.error('Required elements not found:', { sidebar: !!sidebar, main: !!main });
             return;
         }
 
@@ -251,36 +253,36 @@ class EPUBReader {
             const isOpen = sidebar.classList.contains('open');
             console.log('Current sidebar state:', isOpen ? 'open' : 'closed');
 
-            // Force a reflow before adding transition
-            sidebar.style.display = 'none';
-            sidebar.offsetHeight; // Trigger reflow
-            sidebar.style.display = '';
-
-            // Add transition with logging
-            console.log('Adding transition...');
-            sidebar.style.transition = 'transform 0.3s ease';
+            // Add transition class before toggling
+            sidebar.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            main.style.transition = 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
 
             // Use requestAnimationFrame for smooth animation
             requestAnimationFrame(() => {
-                console.log('Applying transform...');
+                console.log('Applying transforms...');
                 if (isOpen) {
                     console.log('Closing sidebar...');
                     sidebar.classList.remove('open');
+                    main.classList.remove('sidebar-open');
                 } else {
                     console.log('Opening sidebar...');
                     sidebar.classList.add('open');
+                    main.classList.add('sidebar-open');
                 }
             });
 
             // Clean up transition after animation
             setTimeout(() => {
-                console.log('Animation complete. Final state:', sidebar.classList.contains('open') ? 'open' : 'closed');
-                this._sidebarToggling = false;
+                console.log('Animation complete. Final state:', {
+                    sidebarOpen: sidebar.classList.contains('open'),
+                    mainAdjusted: main.classList.contains('sidebar-open'),
+                    sidebarDisplay: window.getComputedStyle(sidebar).display,
+                    sidebarTransform: window.getComputedStyle(sidebar).transform
+                });
             }, 300);
 
         } catch (error) {
             console.error('Error toggling sidebar:', error);
-            this._sidebarToggling = false;
         }
     }
 
