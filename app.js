@@ -5,7 +5,6 @@ class EPUBReader {
         this.currentLocation = null;
         this.settings = this.loadSettings();
         this.bookmarks = new Set(this.loadBookmarks());
-        this.isAnimating = false; // Track animation state
         this.initializeElements();
         this.setupEventListeners();
         this.applySettings();
@@ -68,15 +67,7 @@ class EPUBReader {
             this.updateLoadingStatus('Preparing renderer...');
             this.updateLoadingProgress(30);
 
-            const readerElement = document.getElementById('reader');
-            readerElement.innerHTML = '<div class="epub-container"></div>';
-
-            console.log('Setting up EPUB container:', {
-                container: document.querySelector('.epub-container'),
-                readerElement: readerElement
-            });
-
-            this.rendition = this.book.renderTo('reader .epub-container', {
+            this.rendition = this.book.renderTo('reader', {
                 width: '100%',
                 height: '100%',
                 spread: 'none',
@@ -86,6 +77,7 @@ class EPUBReader {
             this.updateLoadingStatus('Generating page locations...');
             this.updateLoadingProgress(50);
 
+            // Generate locations with more sections for better accuracy
             await this.book.locations.generate(2048);
 
             this.updateLoadingStatus('Loading content...');
@@ -195,101 +187,27 @@ class EPUBReader {
         }
     }
 
-    async prevPage() {
-        if (!this.rendition || this.isAnimating) {
-            console.log('Skip page turn: animation in progress or renderer not ready');
-            return;
-        }
-
-        const container = document.querySelector('.epub-container');
-        if (!container) {
-            console.error('Animation container not found');
-            return;
-        }
-
-        try {
-            this.isAnimating = true;
-            console.log('Starting prev page animation');
-
-            container.classList.add('page-turn-left');
-
-            const content = container.querySelector('iframe');
-            if (content) {
-                content.style.transform = 'translateX(3%)';
-            }
-
-            // Wait for animation to start
-            await new Promise(resolve => setTimeout(resolve, 250));
-
-            // Navigate to previous page
-            await this.rendition.prev();
-
-            // Update current location and page info
-            this.currentLocation = this.rendition.currentLocation();
-            this.updatePageInfo();
-
-            // Reset animations after navigation
-            setTimeout(() => {
-                container.classList.remove('page-turn-left');
-                if (content) {
-                    content.style.transform = '';
-                }
-                this.isAnimating = false;
-            }, 500);
-
-        } catch (error) {
-            console.error('Error during page turn animation:', error);
-            this.isAnimating = false;
-            container.classList.remove('page-turn-left');
+    prevPage() {
+        if (this.rendition) {
+            this.rendition.prev().then(() => {
+                // Ensure page info is updated after navigation
+                this.currentLocation = this.rendition.currentLocation();
+                this.updatePageInfo();
+            }).catch(error => {
+                console.error('Error navigating to previous page:', error);
+            });
         }
     }
 
-    async nextPage() {
-        if (!this.rendition || this.isAnimating) {
-            console.log('Skip page turn: animation in progress or renderer not ready');
-            return;
-        }
-
-        const container = document.querySelector('.epub-container');
-        if (!container) {
-            console.error('Animation container not found');
-            return;
-        }
-
-        try {
-            this.isAnimating = true;
-            console.log('Starting next page animation');
-
-            container.classList.add('page-turn-right');
-
-            const content = container.querySelector('iframe');
-            if (content) {
-                content.style.transform = 'translateX(-3%)';
-            }
-
-            // Wait for animation to start
-            await new Promise(resolve => setTimeout(resolve, 250));
-
-            // Navigate to next page
-            await this.rendition.next();
-
-            // Update current location and page info
-            this.currentLocation = this.rendition.currentLocation();
-            this.updatePageInfo();
-
-            // Reset animations after navigation
-            setTimeout(() => {
-                container.classList.remove('page-turn-right');
-                if (content) {
-                    content.style.transform = '';
-                }
-                this.isAnimating = false;
-            }, 500);
-
-        } catch (error) {
-            console.error('Error during page turn animation:', error);
-            this.isAnimating = false;
-            container.classList.remove('page-turn-right');
+    nextPage() {
+        if (this.rendition) {
+            this.rendition.next().then(() => {
+                // Ensure page info is updated after navigation
+                this.currentLocation = this.rendition.currentLocation();
+                this.updatePageInfo();
+            }).catch(error => {
+                console.error('Error navigating to next page:', error);
+            });
         }
     }
 
