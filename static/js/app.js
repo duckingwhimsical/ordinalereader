@@ -326,12 +326,19 @@ class EPUBReader {
             // Clear any existing timeout
             if (navTimeoutId) clearTimeout(navTimeoutId);
 
-            // Hide navigation after 2 seconds
+            // Hide navigation after 2 seconds if not being hovered
             navTimeoutId = setTimeout(() => {
-                prevButton.classList.remove('opacity-100');
-                nextButton.classList.remove('opacity-100');
-                prevButton.classList.add('opacity-0');
-                nextButton.classList.add('opacity-0');
+                // Check if either button is being hovered
+                const prevHovered = prevButton.matches(':hover') || prevButton.parentElement.matches(':hover');
+                const nextHovered = nextButton.matches(':hover') || nextButton.parentElement.matches(':hover');
+
+                // Only hide if neither button is being hovered
+                if (!prevHovered && !nextHovered) {
+                    prevButton.classList.remove('opacity-100');
+                    nextButton.classList.remove('opacity-100');
+                    prevButton.classList.add('opacity-0');
+                    nextButton.classList.add('opacity-0');
+                }
             }, 2000);
         };
 
@@ -361,6 +368,11 @@ class EPUBReader {
 
             touchStartX = null;
             touchStartY = null;
+        });
+
+        // Add mouse movement listener to show navigation
+        this.elements.reader.addEventListener('mousemove', () => {
+            showNavigation();
         });
     }
 
