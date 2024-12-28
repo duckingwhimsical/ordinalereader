@@ -1,14 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPUB Reader</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sepia: {
+                            50: '#fcf9f3',
+                            100: '#f4ecd8',
+                            200: '#e6d5b9',
+                            300: '#d4b990',
+                            400: '#c09c69',
+                            500: '#5b4636'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 h-screen overflow-hidden">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 sepia:from-sepia-50 sepia:to-sepia-100 h-screen overflow-hidden transition-colors duration-300">
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md z-50 flex items-center justify-center transition-opacity duration-300">
         <div class="text-center p-8 rounded-2xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm shadow-xl">
@@ -94,7 +113,7 @@
             </div>
         </div>
 
-        <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900"></div>
+        <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
 
         <!-- Navigation Buttons -->
         <div class="fixed inset-y-0 left-4 flex items-center">

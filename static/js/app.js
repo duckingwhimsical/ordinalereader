@@ -419,14 +419,28 @@ class EPUBReader {
             }
         };
 
-        this.rendition.themes.register(theme, themes[theme]);
-        this.rendition.themes.select(theme);
-        localStorage.setItem('epub-theme', theme);
+        // Register and apply theme to EPUB content
+        this.rendition.themes.default({
+            ...themes[theme].body,
+            'a:link': { color: theme === 'dark' ? '#80b3ff' : '#0066cc' },
+            'a:visited': { color: theme === 'dark' ? '#b380ff' : '#8000ff' }
+        });
 
         // Update system theme
-        document.documentElement.classList.remove('dark');
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light', 'dark', 'sepia');
+        document.documentElement.classList.add(theme);
+
+        // Store theme preference
+        localStorage.setItem('epub-theme', theme);
+
+        // Update reader background
+        this.elements.reader.style.backgroundColor = themes[theme].body.background;
+        this.elements.reader.style.color = themes[theme].body.color;
+
+        // Force refresh the current page to apply theme
+        if (this.rendition.currentLocation()) {
+            const currentCfi = this.rendition.currentLocation().start.cfi;
+            this.rendition.display(currentCfi);
         }
     }
 
@@ -439,8 +453,8 @@ class EPUBReader {
         }
 
         // Apply stored theme
-        const storedTheme = localStorage.getItem('epub-theme');
-        if (storedTheme) {
+        const storedTheme = localStorage.getItem('epub-theme') || 'light';
+        if (this.elements.theme) {
             this.elements.theme.value = storedTheme;
             this.updateTheme();
         }
