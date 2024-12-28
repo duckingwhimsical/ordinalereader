@@ -406,38 +406,69 @@ class EPUBReader {
     updateTheme() {
         const theme = this.elements.theme.value;
         this.settings.theme = theme;
+
+        // Update UI theme
         document.body.setAttribute('data-theme', theme);
 
         if (this.rendition) {
-            // Define theme styles for the book content
-            const computedStyle = getComputedStyle(document.body);
-            const textColor = computedStyle.getPropertyValue('--text-color').trim();
-            const backgroundColor = computedStyle.getPropertyValue('--background-color').trim();
-
-            // Register theme with EPUB.js
-            this.rendition.themes.register({
+            // Define theme styles
+            const themes = {
                 light: {
                     body: {
-                        color: '#333333',
-                        background: '#ffffff'
+                        color: '#333333 !important',
+                        background: '#ffffff !important'
+                    },
+                    'p, div, span, h1, h2, h3, h4, h5, h6': {
+                        color: '#333333 !important'
+                    },
+                    a: {
+                        color: '#2196f3 !important'
                     }
                 },
                 dark: {
                     body: {
-                        color: '#ffffff',
-                        background: '#1a1a1a'
+                        color: '#ffffff !important',
+                        background: '#1a1a1a !important'
+                    },
+                    'p, div, span, h1, h2, h3, h4, h5, h6': {
+                        color: '#ffffff !important'
+                    },
+                    a: {
+                        color: '#64b5f6 !important'
                     }
                 },
                 sepia: {
                     body: {
-                        color: '#5b4636',
-                        background: '#f4ecd8'
+                        color: '#5b4636 !important',
+                        background: '#f4ecd8 !important'
+                    },
+                    'p, div, span, h1, h2, h3, h4, h5, h6': {
+                        color: '#5b4636 !important'
+                    },
+                    a: {
+                        color: '#825e45 !important'
                     }
                 }
+            };
+
+            // Remove any existing themes
+            Object.keys(themes).forEach(themeName => {
+                this.rendition.themes.override(themeName);
+            });
+
+            // Register and apply the new theme
+            Object.entries(themes).forEach(([themeName, styles]) => {
+                this.rendition.themes.register(themeName, styles);
             });
 
             // Apply the selected theme
             this.rendition.themes.select(theme);
+
+            // Force refresh the current page to ensure theme is applied
+            const currentLocation = this.currentLocation?.start?.cfi;
+            if (currentLocation) {
+                this.rendition.display(currentLocation);
+            }
         }
 
         this.saveSettings();
