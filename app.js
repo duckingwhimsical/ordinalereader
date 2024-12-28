@@ -198,36 +198,33 @@ class EPUBReader {
     updatePageInfo() {
         if (!this.book || !this.currentLocation) return;
 
-        // Get the current page number based on spine position and CFI
+        // Get the current page number based on spine position
         const spineItems = this.book.spine.items;
         let currentPage = 1;
-
-        // Calculate current page by counting spine items before current location
-        for (let i = 0; i < spineItems.length; i++) {
-            const item = spineItems[i];
-            if (item.href === this.currentLocation.start.href) {
-                // Add the pages from previous spine items
-                break;
-            }
-            // Estimate pages in this spine item based on its content length
-            currentPage += Math.ceil(item.document.documentElement.textContent.length / 1000);
-        }
-
-        // Add partial progress within current spine item
-        const currentSpineItem = spineItems.find(item => item.href === this.currentLocation.start.href);
-        if (currentSpineItem) {
-            const itemProgress = this.book.locations.percentageFromCfi(this.currentLocation.start.cfi);
-            const itemPages = Math.ceil(currentSpineItem.document.documentElement.textContent.length / 1000);
-            currentPage += Math.floor(itemProgress * itemPages);
-        }
-
-        // Calculate total pages
         let totalPages = 0;
-        spineItems.forEach(item => {
-            totalPages += Math.ceil(item.document.documentElement.textContent.length / 1000);
-        });
 
-        this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
+        try {
+            // Calculate current page by counting spine items before current location
+            for (let i = 0; i < spineItems.length; i++) {
+                const item = spineItems[i];
+                if (!item) continue;
+
+                // Use a simpler page estimation based on spine item index
+                if (item.href === this.currentLocation.start.href) {
+                    currentPage += Math.floor(this.book.locations.percentageFromCfi(this.currentLocation.start.cfi) * 30);
+                    break;
+                }
+                currentPage += 30; // Assume approximately 30 pages per spine item
+            }
+
+            // Calculate total pages based on spine items
+            totalPages = spineItems.length * 30; // Approximate total pages
+
+            this.elements.currentPage.textContent = `Page ${currentPage} of ${totalPages}`;
+        } catch (error) {
+            console.error('Error calculating page numbers:', error);
+            this.elements.currentPage.textContent = 'Loading...';
+        }
     }
 
     prevPage() {
@@ -301,19 +298,28 @@ class EPUBReader {
             const div = document.createElement('div');
             div.classList.add('bookmark-item');
 
-            // Calculate page number for bookmark
-            const spineItems = this.book.spine.items;
-            let bookmarkPage = 1;
+            try {
+                // Calculate page number for bookmark using spine position
+                const spineItems = this.book.spine.items;
+                let bookmarkPage = 1;
 
-            for (let i = 0; i < spineItems.length; i++) {
-                const item = spineItems[i];
-                if (this.book.locations.percentageFromCfi(cfi) <= this.book.locations.percentageFromCfi(item.href)) {
-                    break;
+                for (let i = 0; i < spineItems.length; i++) {
+                    const item = spineItems[i];
+                    if (!item) continue;
+
+                    if (this.book.locations.percentageFromCfi(cfi) <= this.book.locations.percentageFromCfi(item.href)) {
+                        bookmarkPage += Math.floor(this.book.locations.percentageFromCfi(cfi) * 30);
+                        break;
+                    }
+                    bookmarkPage += 30;
                 }
-                bookmarkPage += Math.ceil(item.document.documentElement.textContent.length / 1000);
+
+                div.textContent = `Page ${bookmarkPage}`;
+            } catch (error) {
+                console.error('Error calculating bookmark page:', error);
+                div.textContent = 'Bookmark';
             }
 
-            div.textContent = `Page ${bookmarkPage}`;
             div.addEventListener('click', () => {
                 this.rendition.display(cfi);
                 this.toggleSidebar();
