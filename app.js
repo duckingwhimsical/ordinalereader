@@ -636,24 +636,63 @@ class EPUBReader {
 
     loadBookmarks() {
         try {
+            console.log('Loading bookmarks...');
             const savedBookmarks = localStorage.getItem('epub-reader-bookmarks');
+
+            // Initialize empty Set if no bookmarks exist
             if (!savedBookmarks) {
+                console.log('No saved bookmarks found, initializing empty set');
                 this.bookmarks = new Set();
                 return;
             }
 
-            const bookmarks = JSON.parse(savedBookmarks);
-            this.bookmarks = new Set(bookmarks);
+            // Parse and validate bookmarks
+            try {
+                const bookmarks = JSON.parse(savedBookmarks);
+
+                // Validate that bookmarks is an array
+                if (!Array.isArray(bookmarks)) {
+                    console.error('Invalid bookmark data format:', bookmarks);
+                    this.bookmarks = new Set();
+                    return;
+                }
+
+                // Filter out invalid bookmarks
+                const validBookmarks = bookmarks.filter(bookmark => {
+                    try {
+                        const data = JSON.parse(bookmark);
+                        return data && typeof data === 'object' &&
+                               data.cfi && typeof data.cfi === 'string';
+                    } catch (parseError) {
+                        console.warn('Invalid bookmark entry:', bookmark, parseError);
+                        return false;
+                    }
+                });
+
+                console.log(`Successfully loaded ${validBookmarks.length} valid bookmarks`);
+                this.bookmarks = new Set(validBookmarks);
+            } catch (parseError) {
+                console.error('Error parsing bookmarks JSON:', parseError);
+                this.bookmarks = new Set();
+            }
+
             this.renderBookmarks();
         } catch (error) {
-            console.error('Error loading bookmarks:', error);
+            console.error('Error in loadBookmarks:', error);
             this.bookmarks = new Set();
         }
     }
 
     saveBookmarks() {
         try {
-            localStorage.setItem('epub-reader-bookmarks', JSON.stringify([...this.bookmarks]));
+            if (!this.bookmarks || !(this.bookmarks instanceof Set)) {
+                console.error('Invalid bookmarks object:', this.bookmarks);
+                return;
+            }
+
+            const bookmarksArray = Array.from(this.bookmarks);
+            localStorage.setItem('epub-reader-bookmarks', JSON.stringify(bookmarksArray));
+            console.log(`Successfully saved ${bookmarksArray.length} bookmarks`);
         } catch (error) {
             console.error('Error saving bookmarks:', error);
         }
@@ -929,7 +968,7 @@ class EPUBReader {
 
     setupKeyboardNavigation() {
         document.addEventListener('keydown', (e) => {
-            switch(e.key) {
+            switch (e.key) {
                 case 'ArrowLeft':
                     this.prevPage();
                     break;
