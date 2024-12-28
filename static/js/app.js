@@ -209,15 +209,6 @@ class EPUBReader {
             });
         }
 
-        // Close search overlay when clicking outside
-        document.addEventListener('click', (e) => {
-            if (this.elements.searchOverlay &&
-                !this.elements.searchOverlay.classList.contains('hidden') &&
-                !this.elements.searchOverlay.contains(e.target) &&
-                e.target !== this.elements.searchButton) {
-                this.toggleSearch();
-            }
-        });
 
         // Prevent search overlay from closing when clicking inside it
         if (this.elements.searchOverlay) {
@@ -323,13 +314,6 @@ class EPUBReader {
         }
     }
 
-    toggleSearch() {
-        this.elements.searchOverlay.classList.toggle('hidden');
-        if (!this.elements.searchOverlay.classList.contains('hidden')) {
-            this.elements.searchInput.focus();
-        }
-    }
-
     async handleSearch() {
         const query = this.elements.searchInput.value.trim();
         if (!query || !this.book) return;
@@ -344,45 +328,76 @@ class EPUBReader {
             loadingDiv.textContent = 'Searching...';
             this.elements.searchResults.appendChild(loadingDiv);
 
-            // Perform the search using rendition contents
+            // Get all sections from the book's spine
+            const sections = this.book.spine.spineItems;
             const results = [];
-            const contents = this.rendition.getContents();
 
-            for (const content of contents) {
-                if (!content.document) continue;
+            // Search through each section
+            for (let i = 0; i < sections.length; i++) {
+                const section = sections[i];
 
-                const textNodes = content.document.evaluate(
-                    "//text()",
-                    content.document,
-                    null,
-                    XPathResult.ORDERED_NODE_ITERATOR_TYPE,
-                    null
-                );
+                try {
+                    // Load the section content
+                    const content = await section.load(this.book.load.bind(this.book));
+                    const text = content.textContent || '';
 
-                let textNode;
-                while ((textNode = textNodes.iterateNext())) {
-                    const text = textNode.textContent;
-                    const position = text.toLowerCase().indexOf(query.toLowerCase());
+                    let position = -1;
+                    const queryLower = query.toLowerCase();
+                    const textLower = text.toLowerCase();
 
-                    if (position !== -1) {
+                    // Find all occurrences in this section
+                    while ((position = textLower.indexOf(queryLower, position + 1)) !== -1) {
                         // Get surrounding context
                         const start = Math.max(0, position - 40);
                         const end = Math.min(text.length, position + query.length + 40);
                         const excerpt = text.substring(start, end).replace(/\s+/g, ' ').trim();
 
-                        // Get the CFI for this text node
-                        const cfi = content.cfiFromNode(textNode);
+                        // Calculate the CFI for this position
+                        const range = document.createRange();
+                        const textNodes = content.evaluate('//text()', content, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                        let currentPos = 0;
+                        let targetNode = null;
+                        let offset = 0;
 
-                        results.push({
-                            cfi,
-                            excerpt: '...' + excerpt + '...'
-                        });
+                        // Find the text node containing this position
+                        for (let j = 0; j < textNodes.snapshotLength; j++) {
+                            const node = textNodes.snapshotItem(j);
+                            if (currentPos + node.textContent.length > position) {
+                                targetNode = node;
+                                offset = position - currentPos;
+                                break;
+                            }
+                            currentPos += node.textContent.length;
+                        }
+
+                        if (targetNode) {
+                            range.setStart(targetNode, offset);
+                            range.setEnd(targetNode, offset + query.length);
+                            const cfi = section.cfiFromRange(range);
+
+                            results.push({
+                                cfi,
+                                excerpt: '...' + excerpt + '...',
+                                sectionIndex: i,
+                                position: position
+                            });
+                        }
                     }
+                } catch (err) {
+                    console.warn(`Error searching in section ${i}:`, err);
                 }
             }
 
             // Remove loading state
             this.elements.searchResults.innerHTML = '';
+
+            // Sort results by section and position
+            results.sort((a, b) => {
+                if (a.sectionIndex !== b.sectionIndex) {
+                    return a.sectionIndex - b.sectionIndex;
+                }
+                return a.position - b.position;
+            });
 
             // Display results
             if (results.length === 0) {
@@ -393,7 +408,7 @@ class EPUBReader {
                 return;
             }
 
-            results.forEach(result => {
+            results.forEach((result, index) => {
                 const div = document.createElement('div');
                 div.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded';
 
@@ -401,7 +416,12 @@ class EPUBReader {
                 excerptSpan.className = 'block text-sm text-gray-800 dark:text-gray-200';
                 excerptSpan.textContent = result.excerpt;
 
+                const locationSpan = document.createElement('span');
+                locationSpan.className = 'block text-xs text-gray-600 dark:text-gray-400 mt-1';
+                locationSpan.textContent = `Result ${index + 1} of ${results.length}`;
+
                 div.appendChild(excerptSpan);
+                div.appendChild(locationSpan);
 
                 div.addEventListener('click', () => {
                     this.rendition.display(result.cfi);
@@ -418,6 +438,38 @@ class EPUBReader {
             errorDiv.className = 'p-2 text-red-600 dark:text-red-400';
             errorDiv.textContent = 'An error occurred while searching';
             this.elements.searchResults.appendChild(errorDiv);
+        }
+    }
+
+    toggleSearch() {
+        if (!this.elements.searchOverlay) return;
+
+        const isHidden = this.elements.searchOverlay.classList.contains('hidden');
+
+        if (isHidden) {
+            // Show search overlay
+            this.elements.searchOverlay.classList.remove('hidden');
+            this.elements.searchInput.value = '';
+            this.elements.searchInput.focus();
+
+            // Add click outside listener
+            setTimeout(() => {
+                document.addEventListener('click', this.handleClickOutside);
+            }, 0);
+        } else {
+            // Hide search overlay
+            this.elements.searchOverlay.classList.add('hidden');
+            this.elements.searchResults.innerHTML = '';
+            document.removeEventListener('click', this.handleClickOutside);
+        }
+    }
+
+    handleClickOutside = (e) => {
+        if (this.elements.searchOverlay && 
+            !this.elements.searchOverlay.classList.contains('hidden') && 
+            !this.elements.searchOverlay.contains(e.target) && 
+            e.target !== this.elements.searchButton) {
+            this.toggleSearch();
         }
     }
 
