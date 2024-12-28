@@ -2,7 +2,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Initializing EPUB reader...');
     window.reader = new EPUBReader();
 
-    // Try to load default book
+    // Try to load cached or default book
+    try {
+        console.log('Checking for cached book...');
+        const cachedBook = localStorage.getItem('epub-cached-book');
+
+        if (cachedBook) {
+            console.log('Found cached book, loading...');
+            const blob = await fetch(cachedBook).then(r => r.blob());
+            try {
+                console.log('Starting book rendering process...');
+                await window.reader.loadBook(blob);
+                console.log('Book loaded successfully from cache');
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            } catch (error) {
+                console.error('Error rendering cached book:', error);
+                await loadDefaultBook();
+            }
+        } else {
+            console.log('No cached book found, attempting to load default book...');
+            await loadDefaultBook();
+        }
+    } catch (error) {
+        console.error('Error in book loading process:', error);
+        document.getElementById('filePrompt').classList.remove('hidden');
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+});
+
+async function loadDefaultBook() {
     try {
         console.log('Attempting to load default book...');
         const response = await fetch('/epub/default.epub');
@@ -12,6 +40,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('Default book found, loading...');
             const blob = await response.blob();
             console.log('Book blob size:', blob.size, 'bytes');
+
+            // Cache the book
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                try {
+                    localStorage.setItem('epub-cached-book', reader.result);
+                    console.log('Book cached successfully');
+                } catch (error) {
+                    console.warn('Failed to cache book:', error);
+                }
+            };
+            reader.readAsDataURL(blob);
 
             try {
                 console.log('Starting book rendering process...');
@@ -33,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('filePrompt').classList.remove('hidden');
         document.getElementById('loadingOverlay').classList.add('hidden');
     }
-});
+}
 
 // Define the EPUBReader class
 class EPUBReader {
