@@ -20,6 +20,14 @@ def setup_default_book():
         default_book = assets_dir / 'default.epub'
         if not default_book.exists():
             logger.warning('Default book not found in attached_assets directory')
+            # Copy the sample book from the project root if it exists
+            sample_book = Path('sample.epub')
+            if sample_book.exists():
+                logger.info('Copying sample book to attached_assets directory')
+                shutil.copy(sample_book, default_book)
+                logger.info('Successfully copied sample book')
+            else:
+                logger.warning('No sample book available to copy')
     except Exception as e:
         logger.error(f'Error setting up default book: {str(e)}')
 
