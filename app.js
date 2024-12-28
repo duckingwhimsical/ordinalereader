@@ -302,7 +302,7 @@ class EPUBReader {
         });
     }
 
-    toggleBookmark() {
+    async toggleBookmark() {
         if (!this.currentLocation) {
             console.error('Cannot create bookmark: No current location');
             return;
@@ -513,10 +513,28 @@ class EPUBReader {
 
                 div.addEventListener('click', async () => {
                     try {
-                        await this.rendition.display(bookmark.cfi);
+                        // First ensure book is ready
+                        await this.book.ready;
+
+                        // Use EPUB.js's native CFI navigation
+                        const location = this.book.locations.cfiFromPercentage(
+                            this.book.locations.percentageFromCfi(bookmark.cfi)
+                        );
+
+                        // Display the location with proper rendering
+                        await this.rendition.display(location);
+
+                        // Update current location after navigation
+                        this.currentLocation = this.rendition.currentLocation();
+                        this.updatePageInfo();
+
                         this.toggleSidebar();
                     } catch (error) {
-                        console.error('Error navigating to bookmark:', error);
+                        console.error('Error navigating to bookmark:', error, {
+                            bookmark: bookmark,
+                            bookReady: this.book.ready,
+                            hasLocations: !!this.book.locations
+                        });
                     }
                 });
 
