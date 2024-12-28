@@ -186,13 +186,18 @@ class EPUBReader {
             this.elements.currentPage.textContent = `${percentage}%`;
         }
     }
-
     prevPage() {
         if (this.rendition) {
             this.rendition.prev().then(() => {
                 // Ensure page info is updated after navigation
                 this.currentLocation = this.rendition.currentLocation();
                 this.updatePageInfo();
+                // Add recently clicked class
+                this.elements.prevPage.classList.add('recently-clicked');
+                // Remove class after animation ends
+                setTimeout(() => {
+                    this.elements.prevPage.classList.remove('recently-clicked');
+                }, 2000);
             }).catch(error => {
                 console.error('Error navigating to previous page:', error);
             });
@@ -205,6 +210,12 @@ class EPUBReader {
                 // Ensure page info is updated after navigation
                 this.currentLocation = this.rendition.currentLocation();
                 this.updatePageInfo();
+                // Add recently clicked class
+                this.elements.nextPage.classList.add('recently-clicked');
+                // Remove class after animation ends
+                setTimeout(() => {
+                    this.elements.nextPage.classList.remove('recently-clicked');
+                }, 2000);
             }).catch(error => {
                 console.error('Error navigating to next page:', error);
             });

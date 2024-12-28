@@ -403,16 +403,30 @@ body {
     top: var(--toolbar-height);
     height: calc(100vh - var(--toolbar-height) - 60px); /* Full height minus toolbar and bottom controls */
     width: 15%;
-    background-color: rgba(var(--text-color-rgb), 0.1);
+    background-color: transparent;
     border: none;
     cursor: pointer;
     transition: background-color 0.3s ease;
     z-index: 100;
     padding: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
 }
 
-.side-nav:hover {
-    background-color: rgba(var(--text-color-rgb), 0.2);
+.side-nav:hover,
+.side-nav.recently-clicked {
+    opacity: 1;
+    background-color: rgba(var(--text-color-rgb), 0.1);
+}
+
+.side-nav.recently-clicked {
+    animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 .left-nav {
