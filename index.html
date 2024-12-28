@@ -8,24 +8,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 h-screen overflow-hidden">
-    <!-- Loading Overlay - Show by default -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="text-center p-8">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 h-screen overflow-hidden">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md z-50 flex items-center justify-center transition-opacity duration-300">
+        <div class="text-center p-8 rounded-2xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm shadow-xl">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Loading Book...</h3>
             <div class="w-64 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div id="loadingProgress" class="h-full bg-blue-500 transition-all duration-300"></div>
+                <div id="loadingProgress" class="h-full bg-blue-500 transition-all duration-300 ease-out"></div>
             </div>
-            <p id="loadingStatus" class="mt-2 text-sm text-gray-600 dark:text-gray-400">Initializing...</p>
+            <p id="loadingStatus" class="mt-2 text-sm text-gray-600 dark:text-gray-400 animate-pulse">Initializing...</p>
         </div>
     </div>
 
-    <!-- File Prompt - Hidden by default -->
-    <div id="filePrompt" class="fixed inset-0 bg-gray-900/80 hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
+    <!-- File Prompt -->
+    <div id="filePrompt" class="fixed inset-0 bg-gray-900/90 hidden backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full transform transition-all duration-300 ease-out">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Open EPUB Book</h2>
             <div class="space-y-4">
-                <label class="block p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+                <label class="block p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200">
                     <input type="file" id="bookInput" accept=".epub" class="hidden">
                     <span class="text-sm text-gray-600 dark:text-gray-400">Click to choose a file or drag and drop an EPUB here</span>
                 </label>
@@ -34,16 +34,16 @@
     </div>
 
     <!-- Sidebar -->
-    <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out z-50">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Menu</h2>
-            <button id="closeSidebar" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-xl transform -translate-x-full transition-transform duration-300 ease-out z-40">
+        <div class="sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Contents</h2>
+            <button id="closeSidebar" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                 <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <div class="p-4 space-y-6">
+        <div class="p-4 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
             <div class="space-y-2">
                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">Table of Contents</h3>
                 <div id="toc" class="space-y-1"></div>
@@ -54,14 +54,14 @@
             </div>
             <div class="space-y-4">
                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">Settings</h3>
-                <div class="space-y-4">
+                <div class="space-y-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
                     <div class="space-y-2">
                         <label for="fontSize" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Font Size</label>
-                        <input type="range" id="fontSize" min="12" max="24" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <input type="range" id="fontSize" min="12" max="24" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
                     </div>
                     <div class="space-y-2">
                         <label for="theme" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
-                        <select id="theme" class="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="theme" class="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 transition-colors duration-200">
                             <option value="light">Light</option>
                             <option value="dark">Dark</option>
                             <option value="sepia">Sepia</option>
@@ -74,19 +74,19 @@
 
     <!-- Main Content -->
     <div id="main" class="h-full relative">
-        <div class="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center">
-            <button id="menuButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+        <div class="sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-sm p-4 flex justify-between items-center z-30">
+            <button id="menuButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                 <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
             <div class="flex space-x-2">
-                <button id="searchButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <button id="searchButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                     <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                 </button>
-                <button id="bookmarkButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <button id="bookmarkButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                     <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
                     </svg>
@@ -94,31 +94,35 @@
             </div>
         </div>
 
-        <div id="reader" class="h-[calc(100vh-8rem)] relative"></div>
+        <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900"></div>
 
         <!-- Navigation Buttons -->
-        <button id="prevPage" class="fixed left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-colors">
-            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-        </button>
-        <button id="nextPage" class="fixed right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-colors">
-            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-        </button>
+        <div class="fixed inset-y-0 left-4 flex items-center">
+            <button id="prevPage" class="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="fixed inset-y-0 right-4 flex items-center">
+            <button id="nextPage" class="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+        </div>
 
         <!-- Bottom Controls -->
-        <div class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-4 text-center">
+        <div class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-4 text-center">
             <span id="currentPage" class="text-sm font-medium text-gray-700 dark:text-gray-300"></span>
         </div>
     </div>
 
     <!-- Search Overlay -->
     <div id="searchOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
-        <div class="max-w-lg mx-auto mt-20 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-            <input type="text" id="searchInput" placeholder="Search..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-            <div id="searchResults" class="mt-4 max-h-96 overflow-y-auto"></div>
+        <div class="max-w-lg mx-auto mt-20 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl transform transition-all duration-300">
+            <input type="text" id="searchInput" placeholder="Search..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-200">
+            <div id="searchResults" class="mt-4 max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700"></div>
         </div>
     </div>
 
