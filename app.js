@@ -304,48 +304,113 @@ class EPUBReader {
 
     toggleBookmark() {
         const cfi = this.currentLocation.start.cfi;
+        const currentChapter = this.book.spine.get(this.currentLocation.start.href);
+        const chapterTitle = currentChapter ? currentChapter.title || 'Chapter' : 'Unknown Chapter';
+
         if (this.bookmarks.has(cfi)) {
             this.bookmarks.delete(cfi);
         } else {
-            this.bookmarks.add(cfi);
+            // Store bookmark with metadata
+            const bookmarkData = {
+                cfi: cfi,
+                chapterTitle: chapterTitle,
+                timestamp: new Date().toISOString(),
+                text: this.rendition.getContents()[0].content.querySelector('p')?.textContent?.slice(0, 100) || 'No preview available',
+                page: this.getCurrentPage()
+            };
+            this.bookmarks.add(JSON.stringify(bookmarkData));
         }
         this.saveBookmarks();
         this.updateBookmarkButton();
         this.renderBookmarks();
     }
 
+    getCurrentPage() {
+        try {
+            const location = this.currentLocation;
+            const chapterHref = location.start.href;
+            const pageOffset = this.pageOffsets.get(chapterHref) || 0;
+            return pageOffset + location.start.displayed.page;
+        } catch (error) {
+            console.error('Error getting current page:', error);
+            return 0;
+        }
+    }
+
     updateBookmarkButton() {
         const cfi = this.currentLocation?.start.cfi;
-        this.elements.bookmarkButton.innerHTML =
-            this.bookmarks.has(cfi) ? icons.bookmarkFilled : icons.bookmark;
+        const isBookmarked = Array.from(this.bookmarks).some(bookmark => {
+            try {
+                const data = JSON.parse(bookmark);
+                return data.cfi === cfi;
+            } catch {
+                return false;
+            }
+        });
+        this.elements.bookmarkButton.innerHTML = isBookmarked ? icons.bookmarkFilled : icons.bookmark;
     }
 
     renderBookmarks() {
         const container = this.elements.bookmarks;
-        container.innerHTML = '';
+        container.innerHTML = '<h3>Bookmarks</h3>';
 
-        this.bookmarks.forEach(cfi => {
-            const div = document.createElement('div');
-            div.classList.add('bookmark-item');
+        if (this.bookmarks.size === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.classList.add('bookmark-empty');
+            emptyMessage.textContent = 'No bookmarks yet';
+            container.appendChild(emptyMessage);
+            return;
+        }
 
-            try {
-                // Get the page number for this CFI using the offset system
-                const location = this.rendition.location(cfi);
-                const chapterHref = location?.start?.href;
-                const pageOffset = this.pageOffsets.get(chapterHref) || 0;
-                const page = pageOffset + (location?.start?.displayed?.page || 0);
-                div.textContent = `Page ${page}`;
-            } catch (error) {
-                console.error('Error calculating bookmark page:', error);
-                div.textContent = 'Bookmark';
-            }
+        Array.from(this.bookmarks)
+            .map(bookmark => {
+                try {
+                    return JSON.parse(bookmark);
+                } catch {
+                    return null;
+                }
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.page - b.page)
+            .forEach(bookmark => {
+                const div = document.createElement('div');
+                div.classList.add('bookmark-item');
 
-            div.addEventListener('click', () => {
-                this.rendition.display(cfi);
-                this.toggleSidebar();
+                const title = document.createElement('div');
+                title.classList.add('bookmark-title');
+                title.textContent = bookmark.chapterTitle;
+
+                const preview = document.createElement('div');
+                preview.classList.add('bookmark-preview');
+                preview.textContent = bookmark.text;
+
+                const page = document.createElement('div');
+                page.classList.add('bookmark-page');
+                page.textContent = `Page ${bookmark.page}`;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.classList.add('bookmark-delete');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.bookmarks.delete(JSON.stringify(bookmark));
+                    this.saveBookmarks();
+                    this.renderBookmarks();
+                    this.updateBookmarkButton();
+                });
+
+                div.appendChild(title);
+                div.appendChild(preview);
+                div.appendChild(page);
+                div.appendChild(deleteBtn);
+
+                div.addEventListener('click', () => {
+                    this.rendition.display(bookmark.cfi);
+                    this.toggleSidebar();
+                });
+
+                container.appendChild(div);
             });
-            container.appendChild(div);
-        });
     }
 
     loadSettings() {
@@ -357,7 +422,9 @@ class EPUBReader {
     }
 
     loadBookmarks() {
-        return JSON.parse(localStorage.getItem('epub-reader-bookmarks') || '[]');
+        const bookmarks = JSON.parse(localStorage.getItem('epub-reader-bookmarks') || '[]');
+        // Convert array back to Set
+        return new Set(bookmarks);
     }
 
     saveBookmarks() {
