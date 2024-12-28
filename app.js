@@ -164,16 +164,35 @@ class EPUBReader {
         const tocElement = this.elements.toc;
         tocElement.innerHTML = '';
 
-        toc.toc.forEach(chapter => {
+        const createTocItem = (chapter, level = 0) => {
             const item = document.createElement('div');
             item.classList.add('toc-item');
+            item.style.paddingLeft = `${level * 20}px`;
             item.textContent = chapter.label;
-            item.addEventListener('click', () => {
-                this.rendition.display(chapter.href);
-                this.toggleSidebar();
+
+            item.addEventListener('click', async () => {
+                try {
+                    await this.rendition.display(chapter.href);
+                    this.toggleSidebar();
+                    // Visual feedback
+                    item.style.backgroundColor = 'rgba(128, 128, 128, 0.2)';
+                    setTimeout(() => {
+                        item.style.backgroundColor = '';
+                    }, 200);
+                } catch (error) {
+                    console.error('Error navigating to chapter:', error);
+                }
             });
+
             tocElement.appendChild(item);
-        });
+
+            // Handle nested chapters if they exist
+            if (chapter.subitems && chapter.subitems.length > 0) {
+                chapter.subitems.forEach(subchapter => createTocItem(subchapter, level + 1));
+            }
+        };
+
+        toc.toc.forEach(chapter => createTocItem(chapter));
     }
 
     updatePageInfo() {

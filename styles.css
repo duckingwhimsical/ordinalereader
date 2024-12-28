@@ -192,3 +192,27 @@ body {
         width: 100%;
     }
 }
+
+.toc-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    color: var(--text-color);
+}
+
+.toc-item:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+.bookmark-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    color: var(--text-color);
+}
+
+.bookmark-item:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+}
