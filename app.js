@@ -7,17 +7,13 @@ class EPUBReader {
         this.bookmarks = new Set(this.loadBookmarks());
         this.currentPage = 0;
         this.totalPages = 0;
-        this.pageOffsets = new Map(); // Store page offsets for each chapter
-
+        this.pageOffsets = new Map(); 
         this.initializeElements();
         this.setupEventListeners();
         this.applySettings();
-
-        // Automatically load the default book
         this.loadDefaultBook();
     }
 
-    // Add new method to load default book
     async loadDefaultBook() {
         try {
             const response = await fetch('/epub/Fear-and-Liquidity-in-Crypto-Vegas-Generic.epub');
@@ -25,7 +21,6 @@ class EPUBReader {
             await this.loadBook(blob);
         } catch (error) {
             console.error('Error loading default book:', error);
-            // Show file prompt if default book fails to load
             this.elements.filePrompt.classList.remove('hidden');
         }
     }
@@ -54,30 +49,23 @@ class EPUBReader {
     }
 
     setupEventListeners() {
-        // Menu controls
         this.elements.menuButton.addEventListener('click', () => this.toggleSidebar());
         this.elements.closeSidebar.addEventListener('click', () => this.toggleSidebar());
 
-        // Navigation
         this.elements.prevPage.addEventListener('click', () => this.prevPage());
         this.elements.nextPage.addEventListener('click', () => this.nextPage());
 
-        // Search
         this.elements.searchButton.addEventListener('click', () => this.toggleSearch());
         this.elements.searchInput.addEventListener('input', () => this.handleSearch());
 
-        // Bookmarks
         this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
 
-        // Settings
         this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
         this.elements.theme.addEventListener('change', () => this.updateTheme());
 
-        // File loading
         this.elements.bookInput.addEventListener('change', (e) => this.loadBook(e.target.files[0]));
         this.setupDragAndDrop();
 
-        // Touch and keyboard navigation
         this.setupTouchNavigation();
         this.setupKeyboardNavigation();
     }
@@ -145,13 +133,10 @@ class EPUBReader {
             width: '100%',
             height: '100%',
             spread: 'none',
-            flow: "paginated"  // Enable pagination
+            flow: "paginated"
         });
 
-        // Generate locations before displaying content
         await this.book.locations.generate(1024);
-
-        // Calculate page offsets for continuous numbering
         await this.calculatePageOffsets();
 
         this.loadTableOfContents();
@@ -175,30 +160,39 @@ class EPUBReader {
             this.pageOffsets.clear();
             let cumulativePages = 0;
 
-            // Get all spine items (chapters)
+            if (!this.book.locations.length()) {
+                await this.book.locations.generate(1024);
+            }
+
             const spineItems = this.book.spine.items;
 
-            // For each spine item, calculate its page count
             for (let i = 0; i < spineItems.length; i++) {
                 const item = spineItems[i];
                 this.pageOffsets.set(item.href, cumulativePages);
 
-                // Display the item to get its page count
+                const startCfi = await this.book.locations.cfiFromPercentage(0);
+                const endCfi = await this.book.locations.cfiFromPercentage(1);
+
                 await this.rendition.display(item.href);
                 const displayed = this.rendition.currentLocation().start.displayed;
 
                 if (displayed) {
-                    cumulativePages += displayed.total;
+                    const pagesInSection = displayed.total;
+                    cumulativePages += pagesInSection;
                 }
             }
 
             this.totalPages = cumulativePages;
             console.log('Total pages:', this.totalPages);
+            console.log('Page offsets:', Object.fromEntries(this.pageOffsets));
 
-            // Return to the beginning of the book
             await this.rendition.display(spineItems[0].href);
         } catch (error) {
-            console.error('Error calculating page offsets:', error);
+            console.error('Error calculating page offsets:', error, {
+                spineItems: this.book.spine.items.length,
+                hasLocations: !!this.book.locations,
+                currentLocation: this.currentLocation
+            });
         }
     }
 
@@ -217,7 +211,6 @@ class EPUBReader {
                 try {
                     await this.rendition.display(chapter.href);
                     this.toggleSidebar();
-                    // Visual feedback
                     item.style.backgroundColor = 'rgba(128, 128, 128, 0.2)';
                     setTimeout(() => {
                         item.style.backgroundColor = '';
@@ -229,7 +222,6 @@ class EPUBReader {
 
             tocElement.appendChild(item);
 
-            // Handle nested chapters if they exist
             if (chapter.subitems && chapter.subitems.length > 0) {
                 chapter.subitems.forEach(subchapter => createTocItem(subchapter, level + 1));
             }
@@ -248,11 +240,31 @@ class EPUBReader {
             const location = this.currentLocation;
             const chapterHref = location.start.href;
             const pageOffset = this.pageOffsets.get(chapterHref) || 0;
-            const currentPage = pageOffset + location.start.displayed.page;
+            const currentPage = location.start.displayed 
+                ? pageOffset + location.start.displayed.page
+                : pageOffset;
 
-            this.elements.currentPage.textContent = `Page ${currentPage} of ${this.totalPages}`;
+            const percentage = this.book.locations.percentageFromCfi(location.start.cfi);
+            const estimatedPage = Math.ceil(percentage * this.totalPages);
+
+            const finalPage = currentPage || estimatedPage;
+
+            this.elements.currentPage.textContent = `Page ${finalPage} of ${this.totalPages}`;
+            console.log('Page info updated:', {
+                chapterHref,
+                pageOffset,
+                displayedPage: location.start.displayed?.page,
+                percentage,
+                estimatedPage,
+                finalPage,
+                totalPages: this.totalPages
+            });
         } catch (error) {
-            console.error('Error displaying page numbers:', error);
+            console.error('Error displaying page numbers:', error, {
+                location: this.currentLocation,
+                hasLocations: !!this.book.locations,
+                pageOffsets: Array.from(this.pageOffsets.entries())
+            });
             this.elements.currentPage.textContent = 'Loading...';
         }
     }
@@ -315,11 +327,9 @@ class EPUBReader {
         }
 
         try {
-            // Get current section/chapter information
             const spineItem = this.book.spine.get(this.currentLocation.start.href);
             const toc = this.book.navigation?.toc || [];
 
-            // Find the current chapter in TOC
             const findChapterInToc = (items, href) => {
                 for (let item of items) {
                     if (item.href === href) return item;
@@ -334,25 +344,20 @@ class EPUBReader {
             const chapter = findChapterInToc(toc, spineItem.href);
             console.log('Current chapter:', chapter);
 
-            // Get text content around the current position
-            const contents = this.rendition.getContents();
-            if (!contents || contents.length === 0) {
-                throw new Error('No content available for bookmark');
-            }
-
             let textPreview = 'No preview available';
             try {
-                // Try to get text using range first
                 const range = this.book.range(cfi);
                 if (range) {
                     textPreview = range.toString().slice(0, 100);
                 }
 
-                // Fallback to getting text from current paragraph
                 if (!textPreview || textPreview === 'No preview available') {
-                    const currentElement = contents[0].content.querySelector('p, div, span');
-                    if (currentElement) {
-                        textPreview = currentElement.textContent.slice(0, 100);
+                    const contents = this.rendition.getContents();
+                    if (contents && contents.length > 0) {
+                        const currentElement = contents[0].content.querySelector('p, div, span');
+                        if (currentElement) {
+                            textPreview = currentElement.textContent.slice(0, 100);
+                        }
                     }
                 }
             } catch (previewError) {
@@ -513,21 +518,13 @@ class EPUBReader {
 
                 div.addEventListener('click', async () => {
                     try {
-                        // First ensure book is ready
                         await this.book.ready;
-
-                        // Use EPUB.js's native CFI navigation
                         const location = this.book.locations.cfiFromPercentage(
                             this.book.locations.percentageFromCfi(bookmark.cfi)
                         );
-
-                        // Display the location with proper rendering
                         await this.rendition.display(location);
-
-                        // Update current location after navigation
                         this.currentLocation = this.rendition.currentLocation();
                         this.updatePageInfo();
-
                         this.toggleSidebar();
                     } catch (error) {
                         console.error('Error navigating to bookmark:', error, {
@@ -572,12 +569,20 @@ class EPUBReader {
     getCurrentPage() {
         try {
             const location = this.currentLocation;
+            if (!location) return 1;
+
             const chapterHref = location.start.href;
             const pageOffset = this.pageOffsets.get(chapterHref) || 0;
-            return pageOffset + location.start.displayed.page;
+
+            if (location.start.displayed) {
+                return pageOffset + location.start.displayed.page;
+            }
+
+            const percentage = this.book.locations.percentageFromCfi(location.start.cfi);
+            return Math.ceil(percentage * this.totalPages);
         } catch (error) {
             console.error('Error getting current page:', error);
-            return 0;
+            return 1;
         }
     }
 
@@ -607,17 +612,9 @@ class EPUBReader {
         this.settings.fontSize = size;
 
         if (this.rendition) {
-            // Use only EPUB.js's built-in font size adjustment
             this.rendition.themes.fontSize(`${size}px`);
-
-            // Regenerate locations to ensure correct page counting
             await this.book.locations.generate(1024);
-
-            // Recalculate page offsets
             await this.calculatePageOffsets();
-
-            // Return to the previous location
-
         }
 
         this.saveSettings();
@@ -627,11 +624,9 @@ class EPUBReader {
         const theme = this.elements.theme.value;
         this.settings.theme = theme;
 
-        // Update UI theme
         document.body.setAttribute('data-theme', theme);
 
         if (this.rendition) {
-            // Define theme styles
             const themes = {
                 light: {
                     body: {
@@ -671,21 +666,17 @@ class EPUBReader {
                 }
             };
 
-            // Remove any existing themes
             Object.keys(themes).forEach(themeName => {
                 this.rendition.themes.override(themeName);
             });
 
-            // Register and apply the new theme
             Object.entries(themes).forEach(([themeName, styles]) => {
                 this.rendition.themes.register(themeName, styles);
             });
 
-            // Apply the selected theme
             this.rendition.themes.select(theme);
             this.rendition.themes.override(theme, themes[theme]);
 
-            // Force refresh the current page to ensure theme is applied
             const currentLocation = this.currentLocation?.start?.cfi;
             if (currentLocation) {
                 this.rendition.display(currentLocation);
@@ -698,19 +689,14 @@ class EPUBReader {
     applySettings() {
         if (!this.rendition) return;
 
-        // Set the theme on the document body
         document.body.setAttribute('data-theme', this.settings.theme);
         this.elements.theme.value = this.settings.theme;
 
-        // Apply font size using EPUB.js's native method
         this.rendition.themes.fontSize(`${this.settings.fontSize}px`);
-
-        // Apply the theme using updateTheme
         this.updateTheme();
     }
 }
 
-// Initialize the reader when the document is ready
 document.addEventListener('DOMContentLoaded', () => {
     new EPUBReader();
 });
