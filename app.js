@@ -70,6 +70,11 @@ class EPUBReader {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = '<div class="epub-container"></div>';
 
+            console.log('Setting up EPUB container:', {
+                container: document.querySelector('.epub-container'),
+                readerElement: readerElement
+            });
+
             this.rendition = this.book.renderTo('reader .epub-container', {
                 width: '100%',
                 height: '100%',
@@ -192,7 +197,18 @@ class EPUBReader {
     async prevPage() {
         if (this.rendition) {
             const container = document.querySelector('.epub-container');
-            if (!container) return;
+            if (!container) {
+                console.error('Animation container not found');
+                return;
+            }
+
+            // Check if animation is already in progress
+            if (container.classList.contains('page-turn-left') || container.classList.contains('page-turn-right')) {
+                console.log('Animation already in progress, skipping');
+                return;
+            }
+
+            console.log('Starting prev page animation');
 
             // Add animation classes
             container.classList.add('page-turn-left');
@@ -226,7 +242,18 @@ class EPUBReader {
     async nextPage() {
         if (this.rendition) {
             const container = document.querySelector('.epub-container');
-            if (!container) return;
+            if (!container) {
+                console.error('Animation container not found');
+                return;
+            }
+
+            // Check if animation is already in progress
+            if (container.classList.contains('page-turn-left') || container.classList.contains('page-turn-right')) {
+                console.log('Animation already in progress, skipping');
+                return;
+            }
+
+            console.log('Starting next page animation');
 
             // Add animation classes
             container.classList.add('page-turn-right');
