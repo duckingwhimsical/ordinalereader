@@ -377,22 +377,29 @@ class EPUBReader {
         }
     }
 
-    updateFontSize() {
+    async updateFontSize() {
         const size = parseInt(this.elements.fontSize.value);
         this.settings.fontSize = size;
 
         if (this.rendition) {
             // Use only EPUB.js's built-in font size adjustment
             this.rendition.themes.fontSize(`${size}px`);
+
+            // Store current location before regenerating
+            const currentCfi = this.currentLocation?.start?.cfi;
+
+            // Regenerate locations to ensure correct page counting
+            await this.book.locations.generate(1024);
+
+            // Recalculate page offsets
+            await this.calculatePageOffsets();
+
+            // Return to the previous location
+            if (currentCfi) {
+                await this.rendition.display(currentCfi);
+            }
         }
 
-        this.saveSettings();
-    }
-
-    updateTheme() {
-        const theme = this.elements.theme.value;
-        this.settings.theme = theme;
-        this.applySettings();
         this.saveSettings();
     }
 
