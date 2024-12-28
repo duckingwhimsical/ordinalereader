@@ -1,5 +1,19 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     window.reader = new EPUBReader();
+    // Try to load default book
+    try {
+        const response = await fetch('/epub/default.epub');
+        if (response.ok) {
+            const blob = await response.blob();
+            await window.reader.loadBook(blob);
+        } else {
+            console.log('No default book found, showing file prompt');
+            document.getElementById('filePrompt').classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error loading default book:', error);
+        document.getElementById('filePrompt').classList.remove('hidden');
+    }
 });
 
 // Define the EPUBReader class

@@ -2,12 +2,26 @@ from flask import Flask, send_from_directory, send_file, abort
 import os
 from pathlib import Path
 import logging
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+def setup_default_book():
+    """Setup default book in attached_assets directory"""
+    try:
+        assets_dir = Path('attached_assets')
+        assets_dir.mkdir(exist_ok=True)
+
+        # Check if default book exists
+        default_book = assets_dir / 'default.epub'
+        if not default_book.exists():
+            logger.warning('Default book not found in attached_assets directory')
+    except Exception as e:
+        logger.error(f'Error setting up default book: {str(e)}')
 
 @app.route('/')
 def index():
@@ -48,6 +62,7 @@ def serve_epub(filename):
         abort(500)
 
 if __name__ == '__main__':
-    # Ensure the attached_assets directory exists
-    os.makedirs('attached_assets', exist_ok=True)
+    # Setup default book before starting the server
+    setup_default_book()
+    logger.info('Starting Flask server...')
     app.run(host='0.0.0.0', port=5000, debug=True)
