@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 </head>
 <body>
+    <!-- Sidebar outside main to prevent transform conflicts -->
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
             <h2>Menu</h2>
@@ -50,40 +51,41 @@
             </div>
         </div>
 
-        <div id="searchOverlay" class="search-overlay hidden">
-            <div class="search-container">
-                <input type="text" id="searchInput" placeholder="Search...">
-                <div id="searchResults"></div>
-            </div>
-        </div>
-
         <div id="reader"></div>
 
-        <!-- Side navigation buttons -->
+        <!-- Navigation buttons -->
         <button id="prevPage" class="side-nav left-nav icon-button" aria-label="Previous page"></button>
         <button id="nextPage" class="side-nav right-nav icon-button" aria-label="Next page"></button>
 
-        <!-- Bottom percentage display -->
+        <!-- Bottom controls -->
         <div class="bottom-controls">
             <span id="currentPage"></span>
         </div>
+    </div>
 
-        <div id="filePrompt" class="file-prompt">
-            <div class="file-prompt-content">
-                <h2>Open EPUB Book</h2>
-                <input type="file" id="bookInput" accept=".epub">
-                <p>Or drag and drop an EPUB file here</p>
-            </div>
+    <!-- Overlays -->
+    <div id="searchOverlay" class="search-overlay hidden">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search...">
+            <div id="searchResults"></div>
         </div>
+    </div>
 
-        <div id="loadingOverlay" class="loading-overlay hidden">
-            <div class="loading-content">
-                <h3>Loading Book...</h3>
-                <div class="progress-container">
-                    <div id="loadingProgress" class="progress-bar"></div>
-                </div>
-                <p id="loadingStatus">Initializing...</p>
+    <div id="filePrompt" class="file-prompt">
+        <div class="file-prompt-content">
+            <h2>Open EPUB Book</h2>
+            <input type="file" id="bookInput" accept=".epub">
+            <p>Or drag and drop an EPUB file here</p>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <h3>Loading Book...</h3>
+            <div class="progress-container">
+                <div id="loadingProgress" class="progress-bar"></div>
             </div>
+            <p id="loadingStatus">Initializing...</p>
         </div>
     </div>
 
