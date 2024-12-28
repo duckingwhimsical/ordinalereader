@@ -304,8 +304,11 @@ class EPUBReader {
 
     toggleBookmark() {
         const cfi = this.currentLocation.start.cfi;
-        const currentChapter = this.book.spine.get(this.currentLocation.start.href);
-        const chapterTitle = currentChapter ? currentChapter.title || 'Chapter' : 'Unknown Chapter';
+        // Get chapter title from the spine item's package document
+        const spineItem = this.book.spine.get(this.currentLocation.start.href);
+        const chapterTitle = spineItem?.index ? 
+            (this.book.navigation?.toc?.[spineItem.index]?.label || `Chapter ${spineItem.index + 1}`) : 
+            'Unknown Chapter';
 
         if (this.bookmarks.has(cfi)) {
             this.bookmarks.delete(cfi);
@@ -352,7 +355,7 @@ class EPUBReader {
 
     renderBookmarks() {
         const container = this.elements.bookmarks;
-        container.innerHTML = '<h3>Bookmarks</h3>';
+        container.innerHTML = '<h2 class="bookmarks-header">Bookmarks</h2>';
 
         if (this.bookmarks.size === 0) {
             const emptyMessage = document.createElement('div');
@@ -361,6 +364,9 @@ class EPUBReader {
             container.appendChild(emptyMessage);
             return;
         }
+
+        const bookmarksList = document.createElement('div');
+        bookmarksList.classList.add('bookmarks-list');
 
         Array.from(this.bookmarks)
             .map(bookmark => {
@@ -376,21 +382,25 @@ class EPUBReader {
                 const div = document.createElement('div');
                 div.classList.add('bookmark-item');
 
+                const header = document.createElement('div');
+                header.classList.add('bookmark-header');
+
                 const title = document.createElement('div');
                 title.classList.add('bookmark-title');
                 title.textContent = bookmark.chapterTitle;
-
-                const preview = document.createElement('div');
-                preview.classList.add('bookmark-preview');
-                preview.textContent = bookmark.text;
 
                 const page = document.createElement('div');
                 page.classList.add('bookmark-page');
                 page.textContent = `Page ${bookmark.page}`;
 
+                const preview = document.createElement('div');
+                preview.classList.add('bookmark-preview');
+                preview.textContent = bookmark.text;
+
                 const deleteBtn = document.createElement('button');
                 deleteBtn.classList.add('bookmark-delete');
-                deleteBtn.innerHTML = '&times;';
+                deleteBtn.setAttribute('title', 'Remove bookmark');
+                deleteBtn.innerHTML = '×';
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.bookmarks.delete(JSON.stringify(bookmark));
@@ -399,18 +409,22 @@ class EPUBReader {
                     this.updateBookmarkButton();
                 });
 
-                div.appendChild(title);
+                header.appendChild(title);
+                header.appendChild(deleteBtn);
+
+                div.appendChild(header);
                 div.appendChild(preview);
                 div.appendChild(page);
-                div.appendChild(deleteBtn);
 
                 div.addEventListener('click', () => {
                     this.rendition.display(bookmark.cfi);
                     this.toggleSidebar();
                 });
 
-                container.appendChild(div);
+                bookmarksList.appendChild(div);
             });
+
+        container.appendChild(bookmarksList);
     }
 
     loadSettings() {
