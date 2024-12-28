@@ -14,17 +14,6 @@ class EPUBReader {
         this.loadDefaultBook();
     }
 
-    async loadDefaultBook() {
-        try {
-            const response = await fetch('/epub/Fear-and-Liquidity-in-Crypto-Vegas-Generic.epub');
-            const blob = await response.blob();
-            await this.loadBook(blob);
-        } catch (error) {
-            console.error('Error loading default book:', error);
-            this.elements.filePrompt.classList.remove('hidden');
-        }
-    }
-
     initializeElements() {
         this.elements = {
             sidebar: document.getElementById('sidebar'),
@@ -44,117 +33,108 @@ class EPUBReader {
             theme: document.getElementById('theme'),
             currentPage: document.getElementById('currentPage'),
             toc: document.getElementById('toc'),
-            bookmarks: document.getElementById('bookmarks')
+            bookmarks: document.getElementById('bookmarks'),
+            // Add loading overlay elements
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingProgress: document.getElementById('loadingProgress'),
+            loadingStatus: document.getElementById('loadingStatus')
         };
     }
 
-    setupEventListeners() {
-        this.elements.menuButton.addEventListener('click', () => this.toggleSidebar());
-        this.elements.closeSidebar.addEventListener('click', () => this.toggleSidebar());
+    async loadDefaultBook() {
+        try {
+            this.showLoadingOverlay();
+            this.updateLoadingStatus('Fetching default book...');
 
-        this.elements.prevPage.addEventListener('click', () => this.prevPage());
-        this.elements.nextPage.addEventListener('click', () => this.nextPage());
+            const response = await fetch('/epub/Fear-and-Liquidity-in-Crypto-Vegas-Generic.epub');
+            if (!response.ok) throw new Error('Failed to fetch default book');
 
-        this.elements.searchButton.addEventListener('click', () => this.toggleSearch());
-        this.elements.searchInput.addEventListener('input', () => this.handleSearch());
-
-        this.elements.bookmarkButton.addEventListener('click', () => this.toggleBookmark());
-
-        this.elements.fontSize.addEventListener('change', () => this.updateFontSize());
-        this.elements.theme.addEventListener('change', () => this.updateTheme());
-
-        this.elements.bookInput.addEventListener('change', (e) => this.loadBook(e.target.files[0]));
-        this.setupDragAndDrop();
-
-        this.setupTouchNavigation();
-        this.setupKeyboardNavigation();
-    }
-
-    setupDragAndDrop() {
-        document.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        document.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0 && files[0].type === 'application/epub+zip') {
-                this.loadBook(files[0]);
-            }
-        });
-    }
-
-    setupTouchNavigation() {
-        let touchStartX = null;
-
-        this.elements.reader.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-        });
-
-        this.elements.reader.addEventListener('touchend', (e) => {
-            if (!touchStartX) return;
-
-            const touchEndX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchEndX;
-
-            if (Math.abs(diff) > 50) {
-                if (diff > 0) {
-                    this.nextPage();
-                } else {
-                    this.prevPage();
-                }
-            }
-
-            touchStartX = null;
-        });
-    }
-
-    setupKeyboardNavigation() {
-        document.addEventListener('keydown', (e) => {
-            switch(e.key) {
-                case 'ArrowLeft':
-                    this.prevPage();
-                    break;
-                case 'ArrowRight':
-                    this.nextPage();
-                    break;
-            }
-        });
+            const blob = await response.blob();
+            await this.loadBook(blob);
+        } catch (error) {
+            console.error('Error loading default book:', error);
+            this.elements.filePrompt.classList.remove('hidden');
+            this.hideLoadingOverlay();
+        }
     }
 
     async loadBook(file) {
-        this.book = ePub(file);
-        await this.book.ready;
+        try {
+            this.showLoadingOverlay();
+            this.updateLoadingStatus('Initializing book...');
+            this.updateLoadingProgress(10);
 
-        this.rendition = this.book.renderTo('reader', {
-            width: '100%',
-            height: '100%',
-            spread: 'none',
-            flow: "paginated"
-        });
+            this.book = ePub(file);
+            await this.book.ready;
 
-        await this.book.locations.generate(1024);
-        await this.calculatePageOffsets();
+            this.updateLoadingStatus('Preparing renderer...');
+            this.updateLoadingProgress(30);
 
-        this.loadTableOfContents();
-        this.loadBookmarks();
-        this.elements.filePrompt.classList.add('hidden');
+            this.rendition = this.book.renderTo('reader', {
+                width: '100%',
+                height: '100%',
+                spread: 'none',
+                flow: "paginated"
+            });
 
-        this.rendition.on('relocated', (location) => {
-            this.currentLocation = location;
-            this.updatePageInfo();
-            this.updateBookmarkButton();
-            this.savePosition();
-        });
+            this.updateLoadingStatus('Generating page locations...');
+            this.updateLoadingProgress(50);
 
-        await this.rendition.display();
-        this.applySettings();
+            await this.book.locations.generate(1024);
+
+            this.updateLoadingStatus('Calculating page numbers...');
+            this.updateLoadingProgress(70);
+
+            await this.calculatePageOffsets();
+
+            this.updateLoadingStatus('Loading content...');
+            this.updateLoadingProgress(90);
+
+            this.loadTableOfContents();
+            this.loadBookmarks();
+            this.elements.filePrompt.classList.add('hidden');
+
+            this.rendition.on('relocated', (location) => {
+                this.currentLocation = location;
+                this.updatePageInfo();
+                this.updateBookmarkButton();
+                this.savePosition();
+            });
+
+            await this.rendition.display();
+            this.applySettings();
+
+            this.updateLoadingProgress(100);
+            this.updateLoadingStatus('Complete!');
+            setTimeout(() => this.hideLoadingOverlay(), 500);
+
+        } catch (error) {
+            console.error('Error loading book:', error);
+            this.updateLoadingStatus('Error loading book. Please try again.');
+            setTimeout(() => {
+                this.hideLoadingOverlay();
+                this.elements.filePrompt.classList.remove('hidden');
+            }, 2000);
+        }
     }
 
+    showLoadingOverlay() {
+        this.elements.loadingOverlay.classList.remove('hidden');
+        this.elements.loadingProgress.style.width = '0%';
+        this.elements.loadingStatus.textContent = 'Initializing...';
+    }
 
+    hideLoadingOverlay() {
+        this.elements.loadingOverlay.classList.add('hidden');
+    }
+
+    updateLoadingProgress(percentage) {
+        this.elements.loadingProgress.style.width = `${percentage}%`;
+    }
+
+    updateLoadingStatus(status) {
+        this.elements.loadingStatus.textContent = status;
+    }
     async calculatePageOffsets() {
         try {
             this.pageOffsets.clear();
