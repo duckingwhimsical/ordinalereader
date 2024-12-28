@@ -465,9 +465,9 @@ class EPUBReader {
     }
 
     handleClickOutside = (e) => {
-        if (this.elements.searchOverlay && 
-            !this.elements.searchOverlay.classList.contains('hidden') && 
-            !this.elements.searchOverlay.contains(e.target) && 
+        if (this.elements.searchOverlay &&
+            !this.elements.searchOverlay.classList.contains('hidden') &&
+            !this.elements.searchOverlay.contains(e.target) &&
             e.target !== this.elements.searchButton) {
             this.toggleSearch();
         }
