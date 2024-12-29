@@ -176,14 +176,14 @@ class EPUBReader {
 
         // Navigation
         if (this.elements.prevPage) {
-            this.elements.prevPage.addEventListener('click', () => this.prevPage());
             this.elements.prevPage.addEventListener('touchstart', () => this.remHover());
+            this.elements.prevPage.addEventListener('click', () => this.prevPage());
             this.elements.prevPage.addEventListener('mouseenter', () => this.hoverStart(this.elements.prevPage));
             this.elements.prevPage.addEventListener('mouseleave', () => this.hoverEnd(this.elements.prevPage));
         }
         if (this.elements.nextPage) {
-            this.elements.nextPage.addEventListener('click', () => this.nextPage());
             this.elements.nextPage.addEventListener('touchstart', () => this.remHover());
+            this.elements.nextPage.addEventListener('click', () => this.nextPage());
             this.elements.nextPage.addEventListener('mouseenter', () => this.hoverStart(this.elements.nextPage));
             this.elements.nextPage.addEventListener('mouseleave', () => this.hoverEnd(this.elements.nextPage));
         }
@@ -285,10 +285,12 @@ class EPUBReader {
     }
 
     hoverStart(element) {
+        if (this.nohover) return;
         element.style.opacity = 1;
     }
 
     hoverEnd(element) {
+        if (this.nohover) return;
         element.style.opacity = 0;
     }
 
