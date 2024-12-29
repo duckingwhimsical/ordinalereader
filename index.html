@@ -69,7 +69,7 @@
     </div>
 
     <!-- Sidebar -->
-    <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-xl transform -translate-x-full transition-transform duration-300 ease-out z-40">
+    <div id="sidebar" class="fixed top-0 left-0 h-dvh w-72 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-xl transform -translate-x-full transition-transform duration-300 ease-out z-40">
         <div class="sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Contents</h2>
             <button id="closeSidebar" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
@@ -140,7 +140,10 @@
 
         <!-- Reader Container - Now with padding to prevent content from going under controls -->
         <div class="flex-1 relative">
-            <div id="reader" class="absolute inset-0 bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
+            <div id="reader" class="absolute inset-0 bg-white dark:bg-gray-900 sepia:bg-sepia-500 
+            px-4 sm:px-8 md:px-12 lg:px-18">
+                <!-- Reader content -->
+            </div>
 
             <!-- Navigation Buttons -->
             <div class="absolute inset-y-0 left-0 flex items-center w-24 group z-20">
