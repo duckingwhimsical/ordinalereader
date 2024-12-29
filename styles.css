@@ -48,3 +48,19 @@
 .animate-page-turn {
     animation: pageTurn 1.5s ease-in-out infinite;
 }
+
+/* Update the transition properties for navigation buttons */
+.group:hover button {
+    opacity: 1 !important; /* Force opacity on hover for desktop */
+}
+
+#prevPage, #nextPage {
+    transition: opacity 0.3s ease-out;
+}
+
+@media (hover: hover) {
+    /* Only apply hover styles on devices that support hover */
+    .group:hover button {
+        opacity: 1 !important;
+    }
+}
