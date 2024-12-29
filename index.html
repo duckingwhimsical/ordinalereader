@@ -153,24 +153,30 @@
         <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
 
         <!-- Navigation Buttons -->
-        <div class="fixed inset-y-0 left-0 flex items-center w-16 group z-20">
-            <button id="prevPage" class="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-gradient-to-r from-white/50 via-white/25 to-transparent dark:from-gray-800/50 dark:via-gray-800/25 dark:to-transparent backdrop-blur-[20px] transition-all duration-200">
-                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="fixed inset-y-0 left-0 flex items-center w-24 group z-20">
+            <button id="prevPage" class="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                bg-gradient-to-r from-blue-500/50 via-blue-500/30 to-transparent 
+                dark:bg-gradient-to-r dark:from-gray-300/50 dark:via-gray-300/30 dark:to-transparent
+                sepia:bg-gradient-to-r sepia:from-sepia-500/50 sepia:via-sepia-500/30 sepia:to-transparent">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 sepia:text-sepia-700 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
         </div>
-        <div class="fixed inset-y-0 right-0 flex items-center w-16 group z-20">
-            <button id="nextPage" class="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-gradient-to-l from-white/50 via-white/25 to-transparent dark:from-gray-800/50 dark:via-gray-800/25 dark:to-transparent backdrop-blur-[20px] transition-all duration-200">
-                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="fixed inset-y-0 right-0 flex items-center w-24 group z-20">
+            <button id="nextPage" class="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                bg-gradient-to-l from-blue-500/50 via-blue-500/30 to-transparent
+                dark:bg-gradient-to-l dark:from-gray-300/50 dark:via-gray-300/30 dark:to-transparent
+                sepia:bg-gradient-to-l sepia:from-sepia-500/50 sepia:via-sepia-500/30 sepia:to-transparent">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 sepia:text-sepia-700 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </button>
         </div>
 
         <!-- Bottom Controls -->
-        <div class="fixed bottom-0 left-16 right-16 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-4 text-center">
-            <span id="currentPage" class="text-sm font-medium text-gray-700 dark:text-gray-300"></span>
+        <div class="fixed bottom-0 inset-x-0 backdrop-blur-sm p-4 text-center">
+            <span id="currentPage" class="text-sm font-medium"></span>
         </div>
     </div>
 

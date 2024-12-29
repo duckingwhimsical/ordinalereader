@@ -209,11 +209,19 @@ class EPUBReader {
             });
         }
 
+        // Add escape key handler for search overlay
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.elements.searchOverlay.classList.contains('hidden')) {
+                this.toggleSearch();
+            }
+        });
 
-        // Prevent search overlay from closing when clicking inside it
+        // Update the search overlay click handling
         if (this.elements.searchOverlay) {
             this.elements.searchOverlay.addEventListener('click', (e) => {
-                e.stopPropagation();
+                if (e.target === this.elements.searchOverlay) {
+                    this.toggleSearch();
+                }
             });
         }
 
@@ -287,35 +295,39 @@ class EPUBReader {
         this.elements.searchResults.innerHTML = '<div class="p-2 text-gray-600 dark:text-gray-400">Searching...</div>';
 
         try {
-            const results = [];
-            for (const section of this.book.spine.spineItems) {
-                const content = await section.load(this.book.load.bind(this.book));
-                const text = content.textContent || '';
-                const matches = text.toLowerCase().matchAll(query.toLowerCase());
-                
-                for (const match of matches) {
-                    const start = Math.max(0, match.index - 40);
-                    const end = Math.min(text.length, match.index + query.length + 40);
-                    const excerpt = text.substring(start, end).trim();
-                    
-                    const range = document.createRange();
-                    const cfi = section.cfiFromRange(range);
-                    
-                    results.push({ cfi, excerpt });
-                }
-            }
+            const results = await Promise.all(
+                this.book.spine.spineItems.map(item => 
+                    item.load(this.book.load.bind(this.book))
+                        .then(contents => {
+                            const searchResults = item.find(query);
+                            return searchResults.map(result => ({
+                                cfi: result.cfi,
+                                excerpt: result.excerpt,
+                                section: item.index
+                            }));
+                        })
+                        .catch(err => {
+                            console.warn(`Search failed for section ${item.index}:`, err);
+                            return [];
+                        })
+                )
+            );
 
-            this.elements.searchResults.innerHTML = results.length ? 
-                results.map((result, i) => `
+            // Flatten results array and remove empty results
+            const flatResults = results.flat().filter(result => result);
+
+            this.elements.searchResults.innerHTML = flatResults.length ? 
+                flatResults.map((result, i) => `
                     <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" 
                          onclick="window.reader.rendition.display('${result.cfi}'); window.reader.toggleSearch();">
                         <span class="block text-sm text-gray-800 dark:text-gray-200">${result.excerpt}</span>
-                        <span class="block text-xs text-gray-600 dark:text-gray-400 mt-1">Result ${i + 1} of ${results.length}</span>
+                        <span class="block text-xs text-gray-600 dark:text-gray-400 mt-1">Result ${i + 1} of ${flatResults.length} (Chapter ${result.section + 1})</span>
                     </div>
                 `).join('') :
                 '<div class="p-2 text-gray-600 dark:text-gray-400">No results found</div>';
 
         } catch (error) {
+            console.error('Search error:', error);
             this.elements.searchResults.innerHTML = '<div class="p-2 text-red-600 dark:text-red-400">An error occurred while searching</div>';
         }
     }
@@ -330,25 +342,10 @@ class EPUBReader {
             this.elements.searchOverlay.classList.remove('hidden');
             this.elements.searchInput.value = '';
             this.elements.searchInput.focus();
-
-            // Add click outside listener
-            setTimeout(() => {
-                document.addEventListener('click', this.handleClickOutside);
-            }, 0);
         } else {
             // Hide search overlay
             this.elements.searchOverlay.classList.add('hidden');
             this.elements.searchResults.innerHTML = '';
-            document.removeEventListener('click', this.handleClickOutside);
-        }
-    }
-
-    handleClickOutside = (e) => {
-        if (this.elements.searchOverlay &&
-            !this.elements.searchOverlay.classList.contains('hidden') &&
-            !this.elements.searchOverlay.contains(e.target) &&
-            e.target !== this.elements.searchButton) {
-            this.toggleSearch();
         }
     }
 
@@ -364,40 +361,56 @@ class EPUBReader {
 
             let previewText = 'Bookmark';
             try {
+                // Get the current chapter title from navigation if available
+                const chapter = this.book.navigation && this.book.navigation.get(cfi);
+                const chapterLabel = chapter ? chapter.label : '';
+
+                // Get the current text content
                 const contents = this.rendition.getContents();
-                if (contents && contents.length > 0 && contents[0].documentElement) {
-                    const text = contents[0].documentElement.textContent || '';
-                    previewText = text.trim().slice(0, 100) + (text.length > 100 ? '...' : '');
+                if (contents && contents[0]) {
+                    const selection = contents[0].window.getSelection();
+                    const range = contents[0].document.createRange();
+                    range.selectNodeContents(contents[0].document.body);
+                    const text = range.toString().trim();
+                    previewText = text.slice(0, 100) + (text.length > 100 ? '...' : '');
+                    if (chapterLabel) {
+                        previewText = `${chapterLabel}: ${previewText}`;
+                    }
                 }
             } catch (error) {
-                previewText = this.book?.navigation?.toc?.[0]?.label || 'Bookmarked location';
+                console.warn('Error getting preview text:', error);
+                previewText = 'Bookmarked location';
             }
 
             if (existingBookmark >= 0) {
+                // Remove bookmark
                 this.bookmarks.splice(existingBookmark, 1);
-                // Update bookmark icon using HTML element directly
-                this.elements.bookmarkButton.innerHTML = `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                </svg>`;
+                this.elements.bookmarkButton.innerHTML = `
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                    </svg>`;
             } else {
+                // Add bookmark
                 this.bookmarks.push({
                     cfi,
                     text: previewText
                 });
-                // Update bookmark icon using HTML element directly
-                this.elements.bookmarkButton.innerHTML = `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
-                </svg>`;
+                this.elements.bookmarkButton.innerHTML = `
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
+                    </svg>`;
             }
 
             this.saveBookmarks();
             this.renderBookmarks();
 
         } catch (error) {
+            console.error('Error toggling bookmark:', error);
             // Reset bookmark button state
-            this.elements.bookmarkButton.innerHTML = `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-            </svg>`;
+            this.elements.bookmarkButton.innerHTML = `
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>`;
         }
     }
 
@@ -429,7 +442,10 @@ class EPUBReader {
             div.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded flex items-center space-x-2';
 
             const icon = document.createElement('span');
-            icon.innerHTML = window.icons.bookmarkFilled;
+            icon.innerHTML = `
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
+                </svg>`;
             icon.className = 'w-4 h-4 text-blue-500';
 
             const text = document.createElement('span');
@@ -471,7 +487,7 @@ class EPUBReader {
             },
             dark: {
                 body: {
-                    color: '#e2e8f0', // Changed to a lighter color for better contrast
+                    color: '#e2e8f0',
                     background: '#1a1a1a'
                 }
             },
@@ -507,6 +523,25 @@ class EPUBReader {
         if (this.rendition.currentLocation()) {
             const currentCfi = this.rendition.currentLocation().start.cfi;
             this.rendition.display(currentCfi);
+        }
+
+        // Update the controls color and background to match the theme
+        const controls = document.querySelectorAll('#prevPage, #nextPage, #menuButton, #searchButton, #bookmarkButton');
+        const bottomControls = document.querySelector('.bottom-0');
+        controls.forEach(control => {
+            control.style.color = themes[theme].body.color;
+        });
+        if (bottomControls) {
+            bottomControls.style.backgroundColor = themes[theme].body.background;
+            bottomControls.style.color = themes[theme].body.color;
+            
+            // Add backdrop-blur effect while maintaining transparency
+            bottomControls.style.backdropFilter = 'blur(8px)';
+            bottomControls.style.backgroundColor = theme === 'dark' 
+                ? 'rgba(26, 26, 26, 0.9)'  // Dark theme
+                : theme === 'sepia'
+                    ? 'rgba(244, 236, 216, 0.9)'  // Sepia theme
+                    : 'rgba(255, 255, 255, 0.9)';  // Light theme
         }
     }
 
@@ -569,6 +604,17 @@ class EPUBReader {
         this.rendition.on('relocated', (location) => {
             if (location && location.start) {
                 localStorage.setItem('epub-last-position', location.start.cfi);
+                
+                // Update bookmark button state
+                const currentCfi = location.start.cfi;
+                const isBookmarked = this.bookmarks.some(b => b.cfi === currentCfi);
+                this.elements.bookmarkButton.innerHTML = isBookmarked ? `
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
+                    </svg>` : `
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                    </svg>`;
             }
 
             if (this.book.locations && this.book.locations.length()) {
