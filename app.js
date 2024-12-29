@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (error) {
         console.error('Failed to load book:', error); // Debug
-        document.getElementById('filePrompt').classList.remove('hidden');
     }
     document.getElementById('loadingOverlay').classList.add('hidden');
 });
@@ -35,7 +34,6 @@ async function loadDefaultBook() {
         }
     } catch (error) {
         console.error('Error in loadDefaultBook:', error); // Debug
-        document.getElementById('filePrompt').classList.remove('hidden');
     }
     document.getElementById('loadingOverlay').classList.add('hidden');
 }
@@ -71,7 +69,6 @@ class EPUBReader {
             loadingStatus: document.getElementById('loadingStatus'),
             fontSize: document.getElementById('fontSize'),
             theme: document.getElementById('theme'),
-            filePrompt: document.getElementById('filePrompt')
         };
 
         this.currentLocation = null;

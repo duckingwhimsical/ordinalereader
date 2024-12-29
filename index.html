@@ -68,19 +68,6 @@
         </div>
     </div>
 
-    <!-- File Prompt -->
-    <div id="filePrompt" class="fixed inset-0 bg-gray-900/90 hidden backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full transform transition-all duration-300 ease-out">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Open EPUB Book</h2>
-            <div class="space-y-4">
-                <label class="block p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200">
-                    <input type="file" id="bookInput" accept=".epub" class="hidden">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Click to choose a file or drag and drop an EPUB here</span>
-                </label>
-            </div>
-        </div>
-    </div>
-
     <!-- Sidebar -->
     <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-xl transform -translate-x-full transition-transform duration-300 ease-out z-40">
         <div class="sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -150,7 +137,7 @@
             </div>
         </div>
 
-        <div id="reader" class="h-[calc(100vh-8rem)] relative bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
+        <div id="reader" class="h-[calc(100vh-5rem)] relative bg-white dark:bg-gray-900 sepia:bg-sepia-500"></div>
 
         <!-- Navigation Buttons -->
         <div class="fixed inset-y-0 left-0 flex items-center w-24 group z-20">
@@ -177,7 +164,7 @@
         </div>
 
         <!-- Bottom Controls -->
-        <div class="fixed bottom-0 inset-x-0 backdrop-blur-sm p-4 text-center">
+        <div class="fixed bottom-0 inset-x-0 backdrop-blur-sm p-1 text-center">
             <span id="currentPage" class="text-sm font-medium"></span>
         </div>
     </div>
