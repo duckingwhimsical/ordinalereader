@@ -236,59 +236,7 @@ class EPUBReader {
             this.elements.theme.addEventListener('change', () => this.updateTheme());
         }
 
-        this.setupTouchNavigation();
         this.setupKeyboardNavigation();
-    }
-
-    setupTouchNavigation() {
-        let touchStartX = null;
-        let touchStartTime = null;
-        
-        const showNavigationButtons = () => {
-            const buttons = [this.elements.prevPage, this.elements.nextPage];
-            buttons.forEach(button => {
-                button.classList.remove('opacity-0');
-                button.classList.add('opacity-100');
-                
-                // Clear any existing timeout
-                if (button.fadeTimeout) {
-                    clearTimeout(button.fadeTimeout);
-                }
-                
-                // Set new timeout to hide the button
-                button.fadeTimeout = setTimeout(() => {
-                    button.classList.remove('opacity-100');
-                    button.classList.add('opacity-0');
-                }, 1000); // Hide after 1 second
-            });
-        };
-        
-        this.elements.reader.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartTime = Date.now();
-            showNavigationButtons();
-        });
-
-        this.elements.reader.addEventListener('touchend', (e) => {
-            if (!touchStartX) return;
-
-            const touchEndX = e.changedTouches[0].clientX;
-            const diffX = touchStartX - touchEndX;
-            const touchDuration = Date.now() - touchStartTime;
-
-            // Only trigger if the touch was relatively quick (less than 300ms)
-            // and the swipe distance was significant enough (more than 50px)
-            if (touchDuration < 300 && Math.abs(diffX) > 50) {
-                if (diffX > 0) {
-                    this.nextPage();
-                } else {
-                    this.prevPage();
-                }
-            }
-            
-            touchStartX = null;
-            touchStartTime = null;
-        });
     }
 
     setupKeyboardNavigation() {
@@ -310,12 +258,20 @@ class EPUBReader {
         if (this.rendition) {
             this.rendition.prev();
         }
+        this.elements.prevPage.style.opacity = 1;
+        setTimeout(() => {
+            this.elements.prevPage.style.opacity = 0;
+        }, 300);
     }
 
     nextPage() {
         if (this.rendition) {
             this.rendition.next();
         }
+        this.elements.nextPage.style.opacity = 1;
+        setTimeout(() => {
+            this.elements.nextPage.style.opacity = 0;
+        }, 300);
     }
 
     async handleSearch() {
