@@ -496,8 +496,8 @@ class EPUBReader {
             },
             sepia: {
                 body: {
-                    color: '#5b4636',
-                    background: '#f4ecd8'
+                    color: '#574532',  // Darker, more readable brown
+                    background: '#faf6f0'  // Softer, warmer background
                 }
             }
         };
@@ -505,10 +505,20 @@ class EPUBReader {
         // Register and apply theme to EPUB content
         this.rendition.themes.default({
             ...themes[theme].body,
-            'a:link': { color: theme === 'dark' ? '#93c5fd' : '#0066cc' }, // Lighter blue for dark mode
-            'a:visited': { color: theme === 'dark' ? '#c4b5fd' : '#8000ff' }, // Lighter purple for dark mode
-            'p, div, span': { color: themes[theme].body.color }, // Ensure text elements inherit the correct color
-            'h1, h2, h3, h4, h5, h6': { color: themes[theme].body.color } // Ensure headers inherit the correct color
+            'a:link': { 
+                color: theme === 'dark' ? '#93c5fd' 
+                     : theme === 'sepia' ? '#735c44'  // Darker brown for links in sepia
+                     : '#0066cc'
+            },
+            'a:visited': { 
+                color: theme === 'dark' ? '#c4b5fd'
+                     : theme === 'sepia' ? '#8f7355'  // Medium brown for visited links
+                     : '#8000ff'
+            },
+            'p, div, span': { color: themes[theme].body.color },
+            'h1, h2, h3, h4, h5, h6': { 
+                color: theme === 'sepia' ? '#3b2e21' : themes[theme].body.color  // Darker headers for sepia
+            }
         });
 
         // Update system theme
@@ -543,7 +553,7 @@ class EPUBReader {
             bottomControls.style.backgroundColor = theme === 'dark' 
                 ? 'rgba(26, 26, 26, 0.9)'  // Dark theme
                 : theme === 'sepia'
-                    ? 'rgba(244, 236, 216, 0.9)'  // Sepia theme
+                    ? 'rgba(250, 246, 240, 0.9)'  // Updated sepia background
                     : 'rgba(255, 255, 255, 0.9)';  // Light theme
         }
     }
