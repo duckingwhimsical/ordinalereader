@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.reader = new EPUBReader();
     
     try {
-        const cachedBook = localStorage.getItem('epub-cached-book');
+        const cachedBook = localStorage.getItem('cached-book');
         if (cachedBook) {
             console.log('Found cached book, loading...'); // Debug
             const blob = await fetch(cachedBook).then(r => r.blob());
