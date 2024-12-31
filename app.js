@@ -69,6 +69,7 @@ class EPUBReader {
             loadingStatus: document.getElementById('loadingStatus'),
             fontSize: document.getElementById('fontSize'),
             theme: document.getElementById('theme'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
         };
 
         this.currentLocation = null;
@@ -140,26 +141,20 @@ class EPUBReader {
 
     toggleSidebar() {
         console.log('Toggling sidebar...');
-        console.log('Current sidebar state:', this.elements.sidebar.classList.contains('-translate-x-0') ? 'open' : 'closed');
-
+        
         // Add transition class for smooth animation
-        console.log('Adding transition...');
         this.elements.sidebar.classList.add('transition-transform', 'duration-300', 'ease-in-out');
 
-        // Toggle transform class
-        console.log('Applying transform...');
+        // Toggle transform class and overlay
         if (this.elements.sidebar.classList.contains('-translate-x-0')) {
             this.elements.sidebar.classList.remove('-translate-x-0');
             this.elements.sidebar.classList.add('-translate-x-full');
-            console.log('Closing sidebar...');
+            this.elements.sidebarOverlay.classList.add('hidden');
         } else {
             this.elements.sidebar.classList.remove('-translate-x-full');
             this.elements.sidebar.classList.add('-translate-x-0');
-            console.log('Opening sidebar...');
+            this.elements.sidebarOverlay.classList.remove('hidden');
         }
-
-        // Log final state
-        console.log('Animation complete. Final state:', this.elements.sidebar.classList.contains('-translate-x-0') ? 'open' : 'closed');
     }
 
     setupEventListeners() {
@@ -240,6 +235,13 @@ class EPUBReader {
         }
 
         this.setupKeyboardNavigation();
+
+        // Add click handler for the overlay
+        if (this.elements.sidebarOverlay) {
+            this.elements.sidebarOverlay.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
     }
 
     setupKeyboardNavigation() {
