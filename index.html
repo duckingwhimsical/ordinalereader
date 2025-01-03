@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordinal Reader</title>
+    <base target="_self">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;">
     <link rel="stylesheet" href="styles.css">
     <script type="text/javascript" src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -192,7 +194,11 @@
     </div>
 
     <script>
-        const bookURL = 'ebook.epub';
+        const bookURL = './ebook.epub';
+        
+        window.addEventListener('error', function(e) {
+            console.error('Resource loading error:', e.message);
+        });
     </script>
     <script type="text/javascript" src="app.js"></script>
     <!-- Presented by latestagecapitalism.net -->

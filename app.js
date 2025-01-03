@@ -1,11 +1,38 @@
-// Remove the empty icons object at the top
+// Add storage utility at the top of the file
+const storage = {
+    available: false,
+    memoryStore: new Map(),
+    init() {
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            this.available = true;
+        } catch (e) {
+            this.available = false;
+            console.warn('localStorage not available, using memory storage');
+        }
+    },
+    getItem(key) {
+        return this.available ? localStorage.getItem(key) : this.memoryStore.get(key);
+    },
+    setItem(key, value) {
+        if (this.available) {
+            localStorage.setItem(key, value);
+        } else {
+            this.memoryStore.set(key, value);
+        }
+    }
+};
+
+// Initialize storage check
+storage.init();
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Starting initialization...'); // Debug
     window.reader = new EPUBReader();
     
     try {
-        const cachedBook = localStorage.getItem('cached-book');
+        const cachedBook = storage.getItem('cached-book');
         if (cachedBook) {
             console.log('Found cached book, loading...'); // Debug
             const blob = await fetch(cachedBook).then(r => r.blob());
@@ -20,11 +47,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('loadingOverlay').classList.add('hidden');
 });
 
-// Simplify loadDefaultBook function
+// Modify loadDefaultBook to handle cross-origin issues
 async function loadDefaultBook() {
     try {
         console.log('Fetching default book...'); // Debug
-        const response = await fetch(bookURL);
+        const response = await fetch(bookURL, {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const blob = await response.blob();
             await window.reader.loadBook(blob);
@@ -35,7 +64,6 @@ async function loadDefaultBook() {
     } catch (error) {
         console.error('Error in loadDefaultBook:', error); // Debug
     }
-    document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
 // Define the EPUBReader class
@@ -102,7 +130,7 @@ class EPUBReader {
             this.updateLoadingProgress(80, 'Rendering content...');
             
             // Retrieve the last position
-            const lastPosition = localStorage.getItem('epub-last-position');
+            const lastPosition = storage.getItem('epub-last-position');
             if (lastPosition) {
                 await this.rendition.display(lastPosition);
             } else {
@@ -420,23 +448,23 @@ class EPUBReader {
     }
 
     saveBookmarks() {
-        localStorage.setItem('epub-bookmarks', JSON.stringify(this.bookmarks));
+        storage.setItem('epub-bookmarks', JSON.stringify(this.bookmarks));
     }
 
     loadBookmarks() {
         console.log('Loading bookmarks...');
-        try {
-            const stored = localStorage.getItem('epub-bookmarks');
-            if (stored) {
+        const stored = storage.getItem('epub-bookmarks');
+        if (stored) {
+            try {
                 this.bookmarks = JSON.parse(stored);
                 console.log('Successfully loaded', this.bookmarks.length, 'valid bookmarks');
-            } else {
+            } catch (error) {
+                console.error('Error parsing bookmarks:', error);
                 this.bookmarks = [];
-                console.log('Successfully loaded 0 valid bookmarks');
             }
-        } catch (error) {
-            console.error('Error loading bookmarks:', error);
+        } else {
             this.bookmarks = [];
+            console.log('Successfully loaded 0 valid bookmarks');
         }
     }
 
@@ -476,7 +504,7 @@ class EPUBReader {
 
         const size = this.elements.fontSize.value;
         this.rendition.themes.fontSize(`${size}px`);
-        localStorage.setItem('epub-font-size', size);
+        storage.setItem('epub-font-size', size);
     }
 
     updateTheme() {
@@ -528,7 +556,7 @@ class EPUBReader {
         document.documentElement.classList.add(theme);
 
         // Store theme preference
-        localStorage.setItem('epub-theme', theme);
+        storage.setItem('epub-theme', theme);
 
         // Update reader background
         this.elements.reader.style.backgroundColor = themes[theme].body.background;
@@ -561,13 +589,13 @@ class EPUBReader {
     }
 
     applyStoredSettings() {
-        const storedSize = localStorage.getItem('epub-font-size');
+        const storedSize = storage.getItem('epub-font-size');
         if (storedSize && this.elements.fontSize) {
             this.elements.fontSize.value = storedSize;
             this.updateFontSize();
         }
 
-        const storedTheme = localStorage.getItem('epub-theme') || 'light';
+        const storedTheme = storage.getItem('epub-theme') || 'light';
         if (this.elements.theme) {
             this.elements.theme.value = storedTheme;
             this.updateTheme();
@@ -618,7 +646,7 @@ class EPUBReader {
 
         this.rendition.on('relocated', (location) => {
             if (location && location.start) {
-                localStorage.setItem('epub-last-position', location.start.cfi);
+                storage.setItem('epub-last-position', location.start.cfi);
                 
                 // Update bookmark button state
                 const currentCfi = location.start.cfi;
