@@ -6,47 +6,90 @@
     <title>Ordinal Reader</title>
     <base target="_self">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;">
-    <link rel="stylesheet" href="styles.css">
-    <script type="text/javascript" src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/content/a003aa32d705d1cb5ede01472f179d07cb15bc04df220077ce4ece39a63438bci0"> <!-- styles.css -->
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        sepia: {
-                            50: '#faf6f0',
-                            100: '#f2e8d5',
-                            200: '#e8d5b9',
-                            300: '#d4b690',
-                            400: '#b89b76',
-                            500: '#8f7355',
-                            600: '#735c44',
-                            700: '#574532',
-                            800: '#3b2e21',
-                            900: '#1f1811'
-                        }
-                    },
-                    animation: {
-                        'page-turn': 'pageTurn 1.5s ease-in-out infinite',
-                        'book-open': 'bookOpen 2s ease-in-out forwards'
-                    },
-                    keyframes: {
-                        pageTurn: {
-                            '0%, 100%': { transform: 'rotateY(0deg)' },
-                            '50%': { transform: 'rotateY(-180deg)' }
-                        },
-                        bookOpen: {
-                            '0%': { transform: 'rotateY(0deg)' },
-                            '100%': { transform: 'rotateY(-180deg)' }
-                        }
-                    }
-                }
-            }
-        }
+        
     </script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <script type="text/javascript" src="/content/c9982a12c66ed2bdd346159dc4a13c561211fd9053a56c2c073664d099dca729i0"></script> <!--jszip.js -->
+    <script type="text/javascript" src="/content/0477947b23744a0c258925fd1be734a81f81f26786bc515f1f0e36bce2217cf7i0"></script> <!--epub.js -->
+    <script type="module">
+        // pako
+        import { ungzip } from '/content/72129cd534ee6054cd430dbaa02d1c9aa352d71c410db72be86b76948f880294i0';
+        
+        // Load and inject CSS immediately
+        async function loadCSS() {
+            try {
+                const b64gzipJavascript = await fetch('/content/268a3850dc855f7fbd80fbde4d92526a2bf9283670f65f4e27d542d5c9d7cd2ai0');
+                const base64Response = await b64gzipJavascript.text();
+
+                console.log(base64Response.length);
+
+                const binaryString = atob(base64Response);
+                const uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+
+                const decompressed = ungzip(uint8Array, { to: 'string' });
+                
+                // Create and inject script element
+                const script = document.createElement('script');
+                script.textContent = decompressed;
+                document.head.appendChild(script);
+
+                // Wait a brief moment for the script to execute
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Configure Tailwind after script is loaded
+                if (window.tailwind) {
+                    window.tailwind.config = {
+                        darkMode: 'class',
+                        theme: {
+                            extend: {
+                                colors: {
+                                    sepia: {
+                                        50: '#faf6f0',
+                                        100: '#f2e8d5',
+                                        200: '#e8d5b9',
+                                        300: '#d4b690',
+                                        400: '#b89b76',
+                                        500: '#8f7355',
+                                        600: '#735c44',
+                                        700: '#574532',
+                                        800: '#3b2e21',
+                                        900: '#1f1811'
+                                    }
+                                },
+                                animation: {
+                                    'page-turn': 'pageTurn 1.5s ease-in-out infinite',
+                                    'book-open': 'bookOpen 2s ease-in-out forwards'
+                                },
+                                keyframes: {
+                                    pageTurn: {
+                                        '0%, 100%': { transform: 'rotateY(0deg)' },
+                                        '50%': { transform: 'rotateY(-180deg)' }
+                                    },
+                                    bookOpen: {
+                                        '0%': { transform: 'rotateY(0deg)' },
+                                        '100%': { transform: 'rotateY(-180deg)' }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+
+                // Dispatch event when CSS is loaded
+                window.dispatchEvent(new Event('tailwindloaded'));
+            } catch (error) {
+                console.error('Error loading CSS:', error);
+                window.dispatchEvent(new Event('tailwindfailed'));
+            }
+        };
+        
+        // Start loading immediately
+        loadCSS();
+    </script>
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 sepia:from-sepia-50 sepia:to-sepia-100 h-screen overflow-hidden transition-colors duration-300">
     <!-- Animated Loading Overlay -->
@@ -192,15 +235,29 @@
             <div id="searchResults" class="mt-4 max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700"></div>
         </div>
     </div>
-
+    
     <script>
-        const bookURL = './ebook.epub';
+        // Listen for CSS load event
+        window.addEventListener('tailwindloaded', function() {
+            const bookURL = '/content/70a6311f54efdeb0b3ac763e74cd0555d44a60d88bd668d4bd6dc9263cda762bi0';
+            
+            window.addEventListener('error', function(e) {
+                console.error('Resource loading error:', e.message);
+            });
+
+            if (window.EPUBViewer) {
+                EPUBViewer.initialize(bookURL).catch(error => {
+                    console.error('Failed to initialize EPUB viewer:', error);
+                });
+            } else {
+                console.error('EPUB viewer not loaded');
+            }
+        });
         
-        window.addEventListener('error', function(e) {
-            console.error('Resource loading error:', e.message);
+        window.addEventListener('tailwindfailed', function() {
+            console.error('Failed to load CSS');
         });
     </script>
-    <script type="text/javascript" src="app.js"></script>
     <!-- Presented by latestagecapitalism.net -->
 </body>
 </html>
