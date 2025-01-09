@@ -126,9 +126,32 @@ const EPUBViewer = {
             const response = await fetch(bookURL, {
                 credentials: 'same-origin'
             });
+            
             if (response.ok) {
-                const blob = await response.blob();
-                await window.reader.loadBook(blob);
+                // Get the binary data as ArrayBuffer
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // Convert ArrayBuffer to base64
+                const base64 = this.arrayBufferToBase64(arrayBuffer);
+                
+                // Create data URL - ensure proper formatting
+                const dataUrl = `data:application/epub+zip;base64,${base64}`;
+                
+                // Create new ePub instance with data URL and options
+                const options = {
+                    encoding: "base64"
+                };
+                
+                await window.reader.loadBook(dataUrl);
+                
+                // Cache the data URL
+                try {
+                    const cacheKey = `cached-book-${bookURL}`;
+                    this.storage.setItem(cacheKey, dataUrl);
+                    console.log('Book cached successfully'); // Debug
+                } catch (cacheError) {
+                    console.warn('Failed to cache book:', cacheError); // Debug
+                }
             } else {
                 console.error('Failed to fetch default book:', response.status); // Debug
                 throw new Error('Failed to fetch default book');
@@ -136,6 +159,16 @@ const EPUBViewer = {
         } catch (error) {
             console.error('Error in loadDefaultBook:', error); // Debug
         }
+    },
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
     }
 };
 
@@ -182,16 +215,31 @@ class EPUBReader {
         this.setupEventListeners();
     }
 
-    async loadBook(file) {
+    async loadBook(bookData) {
         try {
             this.updateLoadingProgress(0, 'Reading file...');
             
-            const arrayBuffer = await file.arrayBuffer();
-            this.updateLoadingProgress(20, 'Creating EPUB instance...');
+            // If bookData is already an ePub instance, use it directly
+            if (typeof bookData === 'object' && bookData.constructor && bookData.constructor.name === 'EpubCFI') {
+                this.book = bookData;
+            } else if (bookData instanceof Blob || bookData instanceof File) {
+                // Handle case where blob/file is passed
+                this.updateLoadingProgress(20, 'Creating EPUB instance...');
+                const arrayBuffer = await bookData.arrayBuffer();
+                this.book = ePub(arrayBuffer);
+            } else if (typeof bookData === 'string' && bookData.startsWith('data:application/epub+zip;base64,')) {
+                // Handle base64 data URL
+                this.book = ePub(bookData, { encoding: "base64" });
+            } else if (typeof bookData === 'string') {
+                // Handle regular URL
+                this.book = ePub(bookData);
+            } else {
+                throw new Error('Unsupported book data format');
+            }
             
-            this.book = ePub(arrayBuffer);
             this.updateLoadingProgress(40, 'Setting up renderer...');
             
+            // Configure rendition with base URL to handle Content Security Policy
             this.rendition = this.book.renderTo(this.elements.reader, {
                 width: '100%',
                 height: '100%',
@@ -199,6 +247,9 @@ class EPUBReader {
                 allowScriptedContent: true,
                 allowPopups: true
             });
+
+            // Set base URL for resources
+            //this.book.resources.settings.baseUrl = '/content/';
             
             this.updateLoadingProgress(60, 'Loading book content...');
             await this.book.ready;
@@ -744,6 +795,3 @@ class EPUBReader {
         });
     }
 }
-
-// Export the EPUBViewer object
-window.EPUBViewer = EPUBViewer;

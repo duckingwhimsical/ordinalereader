@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordinal Reader</title>
     <base target="_self">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;">
     <link rel="stylesheet" href="/content/a003aa32d705d1cb5ede01472f179d07cb15bc04df220077ce4ece39a63438bci0"> <!-- styles.css -->
     <script>
         
     </script>
     <script type="text/javascript" src="/content/c9982a12c66ed2bdd346159dc4a13c561211fd9053a56c2c073664d099dca729i0"></script> <!--jszip.js -->
     <script type="text/javascript" src="/content/0477947b23744a0c258925fd1be734a81f81f26786bc515f1f0e36bce2217cf7i0"></script> <!--epub.js -->
+    <script type="text/javascript" src="/content/d6f20d95d377c472c39ec615dc5217d1673ca5b9d4a8595799b3a573003ba5c2i0"></script> <!--app.js -->
     <script type="module">
         // pako
         import { ungzip } from '/content/72129cd534ee6054cd430dbaa02d1c9aa352d71c410db72be86b76948f880294i0';
@@ -245,7 +245,7 @@
                 console.error('Resource loading error:', e.message);
             });
 
-            if (window.EPUBViewer) {
+            if (EPUBViewer) {
                 EPUBViewer.initialize(bookURL).catch(error => {
                     console.error('Failed to initialize EPUB viewer:', error);
                 });
