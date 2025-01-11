@@ -380,9 +380,41 @@ async function processFontFile(zip, font, basePath) {
     }
 }
 
+// Remove the worker code and blob creation
+// Instead, create a search function that runs in the main thread
+function performSearch(text, query, chapter) {
+    if (!text || !query) return [];
 
+    const searchResults = [];
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
 
-// Search functionality
+    // First clean any leftover HTML tags from the text
+    const cleanText = lowerText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    let index = cleanText.indexOf(lowerQuery);
+
+    while (index !== -1) {
+        // Get surrounding context (50 chars before and after)
+        const start = Math.max(0, index - 50);
+        const end = Math.min(cleanText.length, index + query.length + 50);
+        const preview = cleanText.slice(start, end);
+
+        searchResults.push({
+            index,
+            preview: preview.replace(
+                new RegExp(query, 'gi'),
+                match => `<mark class="bg-yellow-200 dark:bg-yellow-500/50">${match}</mark>`
+            ),
+            chapter
+        });
+
+        index = cleanText.indexOf(lowerQuery, index + 1);
+    }
+
+    return searchResults;
+}
+
+// Update handleSearch function to use event listeners instead of inline onclick
 async function handleSearch() {
     const query = document.getElementById('searchInput').value.trim();
     const results = document.getElementById('searchResults');
@@ -396,40 +428,22 @@ async function handleSearch() {
     results.innerHTML = '<div class="p-2 text-gray-600 dark:text-gray-400">Searching...</div>';
 
     try {
-        const searchPromises = currentBook.chapters.map((chapter, index) => {
-            return new Promise((resolve) => {
-                const worker = new Worker('search-worker.js');
-                worker.onmessage = (e) => {
-                    worker.terminate();
-                    resolve(e.data);
-                };
-                worker.onerror = () => {
-                    worker.terminate();
-                    resolve([]);
-                };
-                // Strip HTML tags and clean text before searching
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = chapter.content;
-                const textContent = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-                worker.postMessage({
-                    text: textContent,
-                    query,
-                    chapter: index
-                });
-            });
-        });
-
-        const allResults = (await Promise.all(searchPromises)).flat();
+        const allResults = currentBook.chapters.map((chapter, index) => {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = chapter.content;
+            const textContent = tempDiv.textContent.replace(/\s+/g, ' ').trim();
+            return performSearch(textContent, query, index);
+        }).flat();
 
         if (allResults.length === 0) {
             results.innerHTML = '<div class="p-2 text-gray-600 dark:text-gray-400">No results found</div>';
             return;
         }
 
+        // Create result elements
         results.innerHTML = allResults
             .map((match, index) => `
-                <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded"
-                     onclick="displayChapter(${match.chapter}); toggleSearch();">
+                <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" data-chapter="${match.chapter}">
                     <div class="text-sm text-gray-800 dark:text-gray-200">
                         ${match.preview}
                     </div>
@@ -439,6 +453,16 @@ async function handleSearch() {
                 </div>
             `)
             .join('');
+
+        // Add click handlers to results
+        const resultElements = results.querySelectorAll('[data-chapter]');
+        resultElements.forEach(element => {
+            element.addEventListener('click', () => {
+                const chapter = parseInt(element.dataset.chapter);
+                displayChapter(chapter);
+                toggleSearch();
+            });
+        });
     } catch (error) {
         console.error('Search error:', error);
         results.innerHTML = '<div class="p-2 text-red-600 dark:text-red-400">An error occurred while searching</div>';
