@@ -6,8 +6,9 @@
     <title>EPUB Reader</title>
     <base target="_self">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;">
-    <script type="text/javascript" src="https://cdn.tailwindcss.com"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script type="text/javascript" src="staticjs/tailwind.js"></script>
+    <script type="text/javascript" src="staticjs/jszip.min.js"></script>
+    <script type="text/javascript" src="staticjs/opentype.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -162,6 +163,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

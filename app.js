@@ -215,54 +215,14 @@ const cssProcessor = {
     processFontFaces: async function(css, zip, basePath) {
         console.log('Processing font faces...');
         const fontFaceRegex = /@font-face\s*{[^}]*}/g;
-        const srcRegex = /src:\s*([^;]+);/;
         const fontFaceRules = css.match(fontFaceRegex) || [];
 
         console.log(`Found ${fontFaceRules.length} font-face rules`);
 
-        for (const rule of fontFaceRules) {
-            let processedRule = rule;
-            const srcMatch = rule.match(srcRegex);
-
-            if (srcMatch) {
-                const srcValue = srcMatch[1];
-                const urls = srcValue.match(/url\(['"]?([^'"()]+)['"]?\)/g) || [];
-
-                let newSources = [];
-                for (const urlMatch of urls) {
-                    const url = urlMatch.match(/url\(['"]?([^'"()]+)['"]?\)/)[1];
-                    if (url.startsWith('data:')) {
-                        newSources.push(urlMatch);
-                        continue;
-                    }
-
-                    try {
-                        const fullPath = resolveEpubPath(url, basePath);
-                        const fontFile = zip.file(fullPath);
-
-                        if (fontFile) {
-                            const fontData = await fontFile.async('base64');
-                            const format = getFontFormat(url);
-                            const mimeType = getMimeType(format);
-                            const dataUrl = `data:${mimeType};base64,${fontData}`;
-                            newSources.push(`url('${dataUrl}') format('${format}')`);
-                        } else {
-                            console.warn(`Font file not found: ${fullPath}`);
-                            newSources.push(urlMatch);
-                        }
-                    } catch (e) {
-                        console.warn(`Failed to process font URL ${url}:`, e);
-                        newSources.push(urlMatch);
-                    }
-                }
-
-                processedRule = rule.replace(
-                    srcRegex,
-                    `src: ${newSources.join(', ')};`
-                );
-            }
-            css = css.replace(rule, processedRule);
-        }
+        // Remove all @font-face rules from the CSS
+        fontFaceRules.forEach(rule => {
+            css = css.replace(rule, ''); // Remove the entire @font-face rule
+        });
 
         return css;
     },
@@ -363,7 +323,7 @@ async function processFontFile(zip, font, basePath) {
         for (const path of possiblePaths) {
             fontFile = zip.file(path);
             if (fontFile) {
-                console.log(`Found font at path: ${path}`);
+                console.log(`Found font at path: '${path}'`);
                 break;
             }
         }
@@ -373,7 +333,15 @@ async function processFontFile(zip, font, basePath) {
             return null;
         }
 
-        const fontData = await fontFile.async("base64");
+        // Get the font data as an ArrayBuffer instead of Uint8Array
+        const fontData = await fontFile.async("arraybuffer");
+
+        // Parse the font using opentype.js
+        const loadedFont = opentype.parse(fontData);
+
+        // Use the font name from the loaded font
+        const fontName = loadedFont.names.fontFamily.en || loadedFont.names.fontFamily.default || 'Unknown Font';
+
         const format = getFontFormat(font.href);
         const mimeType = getMimeType(format);
 
@@ -381,14 +349,26 @@ async function processFontFile(zip, font, basePath) {
         const fontInfo = getFontFamilyInfo(font.href.split('/').pop());
         console.log(`Extracted font info:`, fontInfo);
 
-        const fontKey = `${fontInfo.family}-${fontInfo.weight}-${fontInfo.style}`.toLowerCase().replace(/\s+/g, '-');
+        const fontKey = `${fontName}-${fontInfo.weight}-${fontInfo.style}`.toLowerCase().replace(/\s+/g, '-');
+
+        // Log the generated font key
+        console.log(`Generated font key: '${fontKey}'`);
+
+        // Use FontFace to load the font
+        const fontFace = new FontFace(fontName, fontData, {
+            weight: fontInfo.weight,
+            style: fontInfo.style,
+        });
+
+        // Add the font to the document
+        await fontFace.load();
+        document.fonts.add(fontFace);
 
         return {
             id: font.id,
-            family: fontInfo.family,
+            family: fontName,
             weight: fontInfo.weight,
             style: fontInfo.style,
-            data: `data:${mimeType};base64,${fontData}`,
             format: format,
             mimeType: mimeType,
             originalPath: font.fullPath,
@@ -579,7 +559,7 @@ function getPreviewText() {
 async function loadEpubFile() {
     try {
         updateLoadingProgress(0, 'Loading EPUB file...');
-        const response = await fetch('attached_assets/Fear-and-Liquidity-in-Crypto-Vegas-Kindle.epub');
+        const response = await fetch('ebook.bin');
         const epubData = await response.arrayBuffer();
 
         updateLoadingProgress(30, 'Processing EPUB content...');
@@ -736,7 +716,7 @@ async function loadEpubFile() {
             const item = manifest[id];
             const href = item.href;
             const fullPath = item.fullPath;
-            const content = await zip.file(fullPath).async("text");
+            let content = await zip.file(fullPath).async("text");
 
             // Extract and process internal styles
             const styleMatches = content.match(/<style[^>]*>([\s\S]*?)<\/style>/g) || [];
@@ -762,6 +742,9 @@ async function loadEpubFile() {
                 }
                 return null;
             }).filter(Boolean);
+
+            // Remove <link> tags from the content
+            content = content.replace(/<link[^>]+rel=["']stylesheet["'][^>]*>/g, '');
 
             return {
                 href,
@@ -841,7 +824,6 @@ async function displayChapter(index) {
                     font-family: '${font.family}';
                     font-weight: ${font.weight};
                     font-style: ${font.style};
-                    src: url('${font.data}') format('${font.format}');
                     font-display: swap;
                 }
             `).join('\n');
@@ -1135,17 +1117,4 @@ async function processImages(zip, basePath, manifest) {
             break; // Stop after finding first valid cover image
         }
     }
-}
-
-// Helper functions for font processing
-function getFontWeight(filename) {
-    if (filename.includes('Bold')) return '700';
-    if (filename.includes('Medium')) return '500';
-    if (filename.includes('Light')) return '300';
-    return '400'; // Changed 'normal' to '400' for better CSS compatibility
-}
-
-function getFontStyle(filename) {
-    if (filename.includes('Italic')) return 'italic';
-    return 'normal';
 }
