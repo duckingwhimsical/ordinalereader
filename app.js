@@ -1303,11 +1303,16 @@ function goToPage(pageNum) {
         });
     };
   
-    // The static page underneath
+    // The static page underneath should show the target page content
     const staticPage = document.createElement('div');
     staticPage.className = 'absolute inset-0';
     applyCommonStyles(staticPage);
-    staticPage.innerHTML = pages[pageNum - 1];
+
+    if (isForward) {
+        staticPage.innerHTML = pages[pageNum - 1];
+    } else {
+        staticPage.innerHTML = pages[currentPage - 1];
+    }
   
     // The flipping page
     const turningPage = document.createElement('div');
@@ -1316,7 +1321,7 @@ function goToPage(pageNum) {
     turningPage.style.transformStyle = 'preserve-3d';
     turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
   
-    // Front and back faces
+    // Front and back faces - swap content based on direction
     const pageFront = document.createElement('div');
     pageFront.className = 'page-face page-face-front';
     applyCommonStyles(pageFront);
@@ -1325,8 +1330,13 @@ function goToPage(pageNum) {
     pageBack.className = 'page-face page-face-back';
     applyCommonStyles(pageBack);
   
-    pageFront.innerHTML = pages[currentPage - 1];
-    pageBack.innerHTML = isForward ? pages[pageNum - 1] : '';
+    if (isForward) {
+        pageFront.innerHTML = pages[currentPage - 1];  // Current page on front
+        pageBack.innerHTML = pages[pageNum - 1];       // New page on back
+    } else {
+        pageFront.innerHTML = pages[pageNum - 1];      // New page on front
+        pageBack.innerHTML = pages[currentPage - 1];    // Current page on back
+    }
   
     turningPage.appendChild(pageFront);
     turningPage.appendChild(pageBack);
@@ -1347,7 +1357,7 @@ function goToPage(pageNum) {
         turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
     });
   
-    // Cleanup after animation
+    // Update the static page content halfway through the animation
     turningPage.addEventListener('animationend', () => {
         // Apply the new content with the same styles
         container.innerHTML = pages[pageNum - 1];
