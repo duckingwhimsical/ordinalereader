@@ -820,6 +820,10 @@ async function loadEpubFile() {
 // Update displayChapter function to handle page navigation
 async function displayChapter(index, targetPage = 1) {
     try {
+        // Store old chapter info for animation
+        const oldChapter = currentChapter;
+        const oldContent = document.getElementById('reader-content').innerHTML;
+        
         currentChapter = index;
         const chapter = currentBook.chapters[index];
         let content = chapter.content;
@@ -905,11 +909,98 @@ async function displayChapter(index, targetPage = 1) {
             currentBook.chapters[currentChapter].pages = pages;
             pagesPerChapter.set(currentChapter, count);
             
-            // Display the target page
-            currentPage = Math.min(targetPage, count);
-            readerContent.innerHTML = pages[currentPage - 1];
+            // Instead of directly setting innerHTML, use the page turn animation
+            const isForward = index > oldChapter;
             
-            // Update displays
+            // Create temporary content for animation
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pages[targetPage - 1];
+            
+            // Use goToPage-style animation for chapter transition
+            const container = readerContent;
+            const computedStyle = window.getComputedStyle(container);
+            const currentStyles = {
+                fontSize: computedStyle.fontSize,
+                lineHeight: computedStyle.lineHeight,
+                padding: computedStyle.padding,
+                color: computedStyle.color,
+                backgroundColor: computedStyle.backgroundColor,
+                fontFamily: computedStyle.fontFamily,
+            };
+
+            // Create wrapper for perspective
+            const wrapper = document.createElement('div');
+            wrapper.className = 'absolute inset-0';
+            wrapper.style.perspective = '2000px';
+            wrapper.style.backgroundColor = currentStyles.backgroundColor;
+
+            // Main page container
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'absolute inset-0';
+
+            // Apply consistent styles
+            const applyCommonStyles = (element) => {
+                Object.assign(element.style, {
+                    ...currentStyles,
+                    position: 'absolute',
+                    inset: '0',
+                    margin: '0',
+                    overflow: 'hidden',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transformStyle: 'preserve-3d',
+                    transition: 'none',
+                });
+            };
+
+            // Static page
+            const staticPage = document.createElement('div');
+            staticPage.className = 'absolute inset-0';
+            applyCommonStyles(staticPage);
+            staticPage.innerHTML = pages[targetPage - 1];
+
+            // Turning page
+            const turningPage = document.createElement('div');
+            turningPage.className = 'absolute inset-0';
+            applyCommonStyles(turningPage);
+            turningPage.style.transformStyle = 'preserve-3d';
+            turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
+
+            // Front and back faces
+            const pageFront = document.createElement('div');
+            pageFront.className = 'page-face page-face-front';
+            applyCommonStyles(pageFront);
+            pageFront.innerHTML = oldContent;
+
+            const pageBack = document.createElement('div');
+            pageBack.className = 'page-face page-face-back';
+            applyCommonStyles(pageBack);
+            pageBack.innerHTML = pages[targetPage - 1];
+
+            turningPage.appendChild(pageFront);
+            turningPage.appendChild(pageBack);
+            pageContainer.appendChild(staticPage);
+            pageContainer.appendChild(turningPage);
+            wrapper.appendChild(pageContainer);
+
+            container.innerHTML = '';
+            container.appendChild(wrapper);
+
+            requestAnimationFrame(() => {
+                turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+            });
+
+            // Wait for animation to complete
+            await new Promise(resolve => {
+                turningPage.addEventListener('animationend', resolve, { once: true });
+            });
+
+            // Update final content
+            container.innerHTML = pages[targetPage - 1];
+            Object.assign(container.style, currentStyles);
+            
+            // Set current page and update displays
+            currentPage = targetPage;
             updatePageDisplay();
             updateBookmarkState();
         }
