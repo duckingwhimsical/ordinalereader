@@ -803,6 +803,8 @@ async function loadEpubFile() {
             currentBook.titles = currentBook.chapters.map((_, i) => `Chapter ${i + 1}`);
         }
 
+        await loadTotalPages();
+
         updateLoadingProgress(100, 'Completed!');
         setTimeout(() => {
             hideLoadingOverlay();
@@ -1185,7 +1187,7 @@ function calculatePages(content) {
     const container = document.getElementById('reader-content');
     const tempDiv = document.createElement('div');
     
-    // Copy all relevant styles from the container
+    // Setup temp div (same as before)
     tempDiv.style.cssText = window.getComputedStyle(container).cssText;
     tempDiv.style.position = 'absolute';
     tempDiv.style.visibility = 'hidden';
@@ -1197,28 +1199,60 @@ function calculatePages(content) {
     tempDiv.style.overflow = 'hidden';
     
     const pages = [];
-    let currentPage = '';
-
+    let currentPage = [];
+    const pageHeight = container.clientHeight;
+    
     // Split content into words while preserving HTML tags
     const words = content.split(/(<[^>]+>)|(\s+)/g).filter(Boolean);
     
-    tempDiv.innerHTML = '';
     document.body.appendChild(tempDiv);
     
-    for (const word of words) {
-        const testContent = currentPage + ' ' + word;
-        tempDiv.innerHTML = testContent;
+    // Process words in chunks to reduce DOM operations
+    const CHUNK_SIZE = 20; // Adjust based on testing
+    let chunk = [];
+    
+    for (let i = 0; i < words.length; i++) {
+        chunk.push(words[i]);
         
-        if (tempDiv.scrollHeight > container.clientHeight) {
-            pages.push(currentPage);
-            currentPage = word;
-        } else {
-            currentPage = testContent;
+        // Process chunk when it's full or we're at the last word
+        if (chunk.length === CHUNK_SIZE || i === words.length - 1) {
+            const testContent = [...currentPage, ...chunk].join(' ');
+            tempDiv.innerHTML = testContent;
+            
+            if (tempDiv.scrollHeight > pageHeight) {
+                // Binary search to find exact split point in chunk
+                let left = 0;
+                let right = chunk.length;
+                
+                while (left < right) {
+                    const mid = Math.floor((left + right) / 2);
+                    const testChunk = [...currentPage, ...chunk.slice(0, mid)].join(' ');
+                    tempDiv.innerHTML = testChunk;
+                    
+                    if (tempDiv.scrollHeight > pageHeight) {
+                        right = mid;
+                    } else {
+                        left = mid + 1;
+                    }
+                }
+                
+                // Add complete page
+                pages.push(currentPage.join(' '));
+                
+                // Start new page with remaining words
+                currentPage = chunk.slice(left - 1);
+                chunk = [];
+            } else {
+                // Add chunk to current page
+                currentPage.push(...chunk);
+                chunk = [];
+            }
         }
     }
     
-    if (currentPage) {
-        pages.push(currentPage);
+    // Add final page if there's content
+    if (currentPage.length > 0) {
+        pages.push(currentPage.join(' '));
     }
     
     document.body.removeChild(tempDiv);
@@ -1344,10 +1378,16 @@ function prevPage() {
 }
 
 function updatePageDisplay() {
-    const chapterPages = pagesPerChapter.get(currentChapter) || 1;
+    // Calculate current overall page
+    let totalPagesBefore = 0;
+    for (let i = 0; i < currentChapter; i++) {
+        totalPagesBefore += pagesPerChapter.get(i) || 0;
+    }
+    const currentOverallPage = totalPagesBefore + currentPage;
+
     const currentPageElement = document.getElementById('currentPage');
     if (currentPageElement) {
-        currentPageElement.textContent = `Chapter ${currentChapter + 1} of ${currentBook.chapters.length} • Page ${currentPage} of ${chapterPages}`;
+        currentPageElement.textContent = `Page ${currentOverallPage} of ${totalPages}`;
     }
 }
 
@@ -1358,7 +1398,67 @@ function init() {
 }
 
 init();
-function displayBook() {
+
+async function loadTotalPages() {
+    // Pre-calculate pages for all chapters
+    updateLoadingProgress(1, 'Calculating pages...');
+    console.log('Starting page calculations...');
+    
+    // Create a temporary div for page calculations
+    const tempDiv = document.createElement('div');
+    const readerContent = document.getElementById('reader-content');
+    tempDiv.style.cssText = window.getComputedStyle(readerContent).cssText;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.visibility = 'hidden';
+    tempDiv.style.width = readerContent.clientWidth + 'px';
+    tempDiv.style.height = readerContent.clientHeight + 'px';
+    tempDiv.style.fontSize = currentFontSize + 'px';
+    tempDiv.style.padding = window.getComputedStyle(readerContent).padding;
+    tempDiv.style.boxSizing = 'border-box';
+    tempDiv.style.overflow = 'hidden';
+    document.body.appendChild(tempDiv);
+
+    // Reset counters
+    totalPages = 0;
+    pagesPerChapter.clear();
+
+    // Process each chapter sequentially
+    for (let i = 0; i < currentBook.chapters.length; i++) {
+        // Use requestAnimationFrame to avoid blocking the main thread
+        //await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        const { pages, count } = calculatePages(currentBook.chapters[i].content);
+        currentBook.chapters[i].pages = pages;
+        pagesPerChapter.set(i, count);
+        totalPages += count;
+        
+        console.log(`Chapter ${i + 1}: ${count} pages (Running total: ${totalPages})`);
+        
+        // Update loading progress
+        const progress = Math.round((i / currentBook.chapters.length) * 100);
+        updateLoadingProgress(progress, 
+            `Calculating pages for chapter ${i + 1} of ${currentBook.chapters.length}...`);
+        
+        // Give the UI a chance to update
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    console.log(`Final total pages: ${totalPages}`);
+
+    // Clean up temporary div
+    document.body.removeChild(tempDiv);
+
+    // Make sure we have pages before proceeding
+    if (totalPages === 0) {
+        console.error('No pages were calculated!');
+        console.log('Number of chapters:', currentBook.chapters.length);
+        console.log('First chapter content length:', currentBook.chapters[0]?.content.length);
+    }
+}
+
+async function displayBook() {
+
+    // Display the book
     document.getElementById('reader-content').parentElement.classList.remove('hidden');
     displayChapter(0);
     displayNavigation();
