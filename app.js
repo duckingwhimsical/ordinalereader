@@ -1105,10 +1105,11 @@ function calculatePages(content) {
     tempDiv.style.boxSizing = 'border-box';
     tempDiv.style.overflow = 'hidden';
     
-    // Split content into pages
     const pages = [];
     let currentPage = '';
-    const words = content.split(/\s+/);
+
+    // Split content into words while preserving HTML tags
+    const words = content.split(/(<[^>]+>)|(\s+)/g).filter(Boolean);
     
     tempDiv.innerHTML = '';
     document.body.appendChild(tempDiv);
