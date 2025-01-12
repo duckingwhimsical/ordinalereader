@@ -1455,7 +1455,7 @@ init();
 
 async function loadTotalPages() {
     // Pre-calculate pages for all chapters
-    updateLoadingProgress(1, 'Calculating pages...');
+    updateLoadingProgress(1, 'Calculating chapter layout...');
     console.log('Starting page calculations...');
     
     // Create a temporary div for page calculations
@@ -1491,7 +1491,7 @@ async function loadTotalPages() {
         // Update loading progress
         const progress = Math.round((i / currentBook.chapters.length) * 100);
         updateLoadingProgress(progress, 
-            `Calculating pages for chapter ${i + 1} of ${currentBook.chapters.length}...`);
+            `Calculating layout for chapter ${i + 1} of ${currentBook.chapters.length}...`);
         
         // Give the UI a chance to update
         await new Promise(resolve => setTimeout(resolve, 0));
