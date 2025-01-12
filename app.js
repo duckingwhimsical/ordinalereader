@@ -1187,74 +1187,97 @@ function calculatePages(content) {
     const container = document.getElementById('reader-content');
     const tempDiv = document.createElement('div');
     
-    // Setup temp div (same as before)
+    // Setup temp div with same styles but account for bottom bar
     tempDiv.style.cssText = window.getComputedStyle(container).cssText;
     tempDiv.style.position = 'absolute';
     tempDiv.style.visibility = 'hidden';
     tempDiv.style.width = container.clientWidth + 'px';
-    tempDiv.style.height = container.clientHeight + 'px';
+    // Subtract the height of the bottom bar (approximately 32px)
+    tempDiv.style.height = (container.clientHeight - 32) + 'px';
     tempDiv.style.fontSize = currentFontSize + 'px';
     tempDiv.style.padding = window.getComputedStyle(container).padding;
     tempDiv.style.boxSizing = 'border-box';
     tempDiv.style.overflow = 'hidden';
     
-    const pages = [];
-    let currentPage = [];
-    const pageHeight = container.clientHeight;
-    
-    // Split content into words while preserving HTML tags
-    const words = content.split(/(<[^>]+>)|(\s+)/g).filter(Boolean);
-    
     document.body.appendChild(tempDiv);
-    
-    // Process words in chunks to reduce DOM operations
-    const CHUNK_SIZE = 20; // Adjust based on testing
-    let chunk = [];
-    
-    for (let i = 0; i < words.length; i++) {
-        chunk.push(words[i]);
+    const pages = [];
+    const pageHeight = container.clientHeight;
+
+    // Helper function to find the best split position
+    function findBestSplitPosition(text, maxHeight) {
+        let low = 0;
+        let high = text.length;
+        let bestPos = 0;
         
-        // Process chunk when it's full or we're at the last word
-        if (chunk.length === CHUNK_SIZE || i === words.length - 1) {
-            const testContent = [...currentPage, ...chunk].join(' ');
-            tempDiv.innerHTML = testContent;
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            tempDiv.innerHTML = text.substring(0, mid);
             
-            if (tempDiv.scrollHeight > pageHeight) {
-                // Binary search to find exact split point in chunk
-                let left = 0;
-                let right = chunk.length;
-                
-                while (left < right) {
-                    const mid = Math.floor((left + right) / 2);
-                    const testChunk = [...currentPage, ...chunk.slice(0, mid)].join(' ');
-                    tempDiv.innerHTML = testChunk;
-                    
-                    if (tempDiv.scrollHeight > pageHeight) {
-                        right = mid;
-                    } else {
-                        left = mid + 1;
-                    }
-                }
-                
-                // Add complete page
-                pages.push(currentPage.join(' '));
-                
-                // Start new page with remaining words
-                currentPage = chunk.slice(left - 1);
-                chunk = [];
+            if (tempDiv.scrollHeight < maxHeight) {
+                bestPos = mid;
+                low = mid + 1;
             } else {
-                // Add chunk to current page
-                currentPage.push(...chunk);
-                chunk = [];
+                high = mid - 1;
             }
         }
+
+        // Walk back to find a natural break point (paragraph, sentence, or word)
+        let finalPos = bestPos;
+        const naturalBreaks = [
+            { regex: /(<\/p>|<\/div>|<\/section>|<\/article>)/g, distance: 100 },
+            { regex: /([.!?])\s+/g, distance: 50 },
+            { regex: /[,;:]\s+/g, distance: 30 },
+            { regex: /\s+/g, distance: 20 }
+        ];
+
+        for (const { regex, distance } of naturalBreaks) {
+            const searchText = text.substring(Math.max(0, bestPos - distance), 
+                                           Math.min(text.length, bestPos + distance));
+            let match;
+            let lastMatch = null;
+            regex.lastIndex = 0;
+            
+            while ((match = regex.exec(searchText)) !== null) {
+                const globalPos = Math.max(0, bestPos - distance) + match.index + match[0].length;
+                if (globalPos > bestPos) break;
+                lastMatch = globalPos;
+            }
+            
+            if (lastMatch !== null) {
+                tempDiv.innerHTML = text.substring(0, lastMatch);
+                if (tempDiv.scrollHeight < maxHeight) {
+                    finalPos = lastMatch;
+                    break;
+                }
+            }
+        }
+
+        return finalPos;
     }
-    
-    // Add final page if there's content
-    if (currentPage.length > 0) {
-        pages.push(currentPage.join(' '));
+
+    let remainingContent = content;
+    while (remainingContent.length > 0) {
+        tempDiv.innerHTML = remainingContent;
+        
+        if (tempDiv.scrollHeight < pageHeight) {
+            // All remaining content fits on one page
+            pages.push(remainingContent);
+            break;
+        }
+
+        const splitPos = findBestSplitPosition(remainingContent, pageHeight);
+        if (splitPos === 0) {
+            // Emergency fallback: if we can't find a good split point, force split
+            console.warn('Forced page split - content might be too large for page');
+            pages.push(remainingContent);
+            break;
+        }
+
+        // Add page and continue with remaining content
+        pages.push(remainingContent.substring(0, splitPos));
+        remainingContent = remainingContent.substring(splitPos).trim();
     }
-    
+
     document.body.removeChild(tempDiv);
     return { pages, count: pages.length };
 }
