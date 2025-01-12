@@ -867,6 +867,16 @@ async function displayChapter(index, targetPage = 1) {
                 }
             `).join('\n');
 
+        // Add custom image handling CSS
+        combinedStyles += `
+            img {
+                max-width: 100%;
+                height: auto;
+                max-height: 90vh;
+                object-fit: contain;
+            }
+        `;
+
         // Replace image sources with base64 data
         content = content.replace(
             /<img[^>]+src="([^"]+)"[^>]*>/g,
