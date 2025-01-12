@@ -820,7 +820,7 @@ async function loadEpubFile() {
 }
 
 // Update displayChapter function to handle page navigation
-async function displayChapter(index, targetPage = 1) {
+async function displayChapter(index, targetPage = 1, isForward = true) {
     try {
         // Store old chapter info for animation
         const oldChapter = currentChapter;
@@ -872,7 +872,7 @@ async function displayChapter(index, targetPage = 1) {
             img {
                 max-width: 100%;
                 height: auto;
-                max-height: 90vh;
+                max-height: 85vh;
                 object-fit: contain;
             }
         `;
@@ -922,7 +922,7 @@ async function displayChapter(index, targetPage = 1) {
             pagesPerChapter.set(currentChapter, count);
             
             // Instead of directly setting innerHTML, use the page turn animation
-            const isForward = index > oldChapter;
+            const isForwardAnim = isForward !== undefined ? isForward : index > oldChapter;
             
             // Create temporary content for animation
             const tempDiv = document.createElement('div');
@@ -969,7 +969,12 @@ async function displayChapter(index, targetPage = 1) {
             const staticPage = document.createElement('div');
             staticPage.className = 'absolute inset-0';
             applyCommonStyles(staticPage);
-            staticPage.innerHTML = pages[targetPage - 1];
+
+            if (isForwardAnim) {
+                staticPage.innerHTML = pages[targetPage - 1];
+            } else {
+                staticPage.innerHTML = oldContent;
+            }
 
             // Turning page
             const turningPage = document.createElement('div');
@@ -982,12 +987,18 @@ async function displayChapter(index, targetPage = 1) {
             const pageFront = document.createElement('div');
             pageFront.className = 'page-face page-face-front';
             applyCommonStyles(pageFront);
-            pageFront.innerHTML = oldContent;
 
             const pageBack = document.createElement('div');
             pageBack.className = 'page-face page-face-back';
             applyCommonStyles(pageBack);
-            pageBack.innerHTML = pages[targetPage - 1];
+
+            if (isForwardAnim) {
+                pageFront.innerHTML = oldContent;
+                pageBack.innerHTML = pages[targetPage - 1];
+            } else {
+                pageFront.innerHTML = pages[targetPage - 1];
+                pageBack.innerHTML = oldContent;
+            }
 
             turningPage.appendChild(pageFront);
             turningPage.appendChild(pageBack);
@@ -999,7 +1010,7 @@ async function displayChapter(index, targetPage = 1) {
             container.appendChild(wrapper);
 
             requestAnimationFrame(() => {
-                turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+                turningPage.classList.add(isForwardAnim ? 'turn-forward' : 'turn-backward');
             });
 
             // Wait for animation to complete
@@ -1416,7 +1427,7 @@ function prevPage() {
         goToPage(currentPage - 1);
     } else if (currentChapter > 0) {
         const prevChapterPages = pagesPerChapter.get(currentChapter - 1) || 1;
-        displayChapter(currentChapter - 1, prevChapterPages);
+        displayChapter(currentChapter - 1, prevChapterPages, false);
     }
 }
 
