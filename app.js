@@ -1140,46 +1140,66 @@ function goToPage(pageNum) {
     if (!pages || pageNum < 1 || pageNum > pages.length) return;
   
     const isForward = pageNum > currentPage;
+    
+    // Capture current styles
+    const computedStyle = window.getComputedStyle(container);
+    const currentStyles = {
+        fontSize: computedStyle.fontSize,
+        lineHeight: computedStyle.lineHeight,
+        padding: computedStyle.padding,
+        color: computedStyle.color,
+        backgroundColor: computedStyle.backgroundColor,
+        fontFamily: computedStyle.fontFamily,
+        // Add any other relevant styles
+    };
   
     // Create a wrapper for perspective
     const wrapper = document.createElement('div');
     wrapper.className = 'absolute inset-0';
     wrapper.style.perspective = '2000px';
-    wrapper.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+    wrapper.style.backgroundColor = currentStyles.backgroundColor;
   
     // Main page container
     const pageContainer = document.createElement('div');
     pageContainer.className = 'absolute inset-0';
   
+    // Apply consistent styles to all page elements
+    const applyCommonStyles = (element) => {
+        Object.assign(element.style, {
+            ...currentStyles,
+            position: 'absolute',
+            inset: '0',
+            margin: '0',
+            overflow: 'hidden',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            transformStyle: 'preserve-3d',
+            transition: 'none', // Prevent any unwanted transitions
+        });
+    };
+  
     // The static page underneath
     const staticPage = document.createElement('div');
     staticPage.className = 'absolute inset-0';
-    staticPage.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
-    // For backward navigation, static page shows the new page
-    // For forward navigation, static page shows the new page
+    applyCommonStyles(staticPage);
     staticPage.innerHTML = pages[pageNum - 1];
   
     // The flipping page
     const turningPage = document.createElement('div');
     turningPage.className = 'absolute inset-0';
+    applyCommonStyles(turningPage);
     turningPage.style.transformStyle = 'preserve-3d';
     turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
   
     // Front and back faces
     const pageFront = document.createElement('div');
     pageFront.className = 'page-face page-face-front';
-    pageFront.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+    applyCommonStyles(pageFront);
   
     const pageBack = document.createElement('div');
     pageBack.className = 'page-face page-face-back';
-    pageBack.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+    applyCommonStyles(pageBack);
   
-    // For backward navigation:
-    //   - front = current page (will flip away)
-    //   - back = empty (since new page is static underneath)
-    // For forward navigation:
-    //   - front = current page (will flip away)
-    //   - back = new page (will be revealed)
     pageFront.innerHTML = pages[currentPage - 1];
     pageBack.innerHTML = isForward ? pages[pageNum - 1] : '';
   
@@ -1190,24 +1210,29 @@ function goToPage(pageNum) {
     pageContainer.appendChild(turningPage);
     wrapper.appendChild(pageContainer);
   
+    // Store the original content for cleanup
+    const originalContent = container.innerHTML;
+    
+    // Apply the new content
     container.innerHTML = '';
     container.appendChild(wrapper);
   
     // Add the correct class to trigger the keyframe
     requestAnimationFrame(() => {
-      turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+        turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
     });
   
     // Cleanup after animation
     turningPage.addEventListener('animationend', () => {
-      container.innerHTML = pages[pageNum - 1];
-      currentPage = pageNum;
-      updatePageDisplay();
-      updateBookmarkState();
+        // Apply the new content with the same styles
+        container.innerHTML = pages[pageNum - 1];
+        Object.assign(container.style, currentStyles);
+        
+        currentPage = pageNum;
+        updatePageDisplay();
+        updateBookmarkState();
     }, { once: true });
-  }
-  
-
+}
 
 function nextPage() {
     const chapterPages = pagesPerChapter.get(currentChapter) || 1;
