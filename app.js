@@ -30,6 +30,9 @@ storage.init();
 let currentFontSize = parseInt(storage.getItem('epub-font-size')) || 16;
 let currentBook = null;
 let currentChapter = 0;
+let currentPage = 0;
+let totalPages = 0;
+let pagesPerChapter = new Map();
 let bookmarks = [];
 let searchWorker = null;
 
@@ -442,16 +445,21 @@ async function handleSearch() {
 
         // Create result elements
         results.innerHTML = allResults
-            .map((match, index) => `
-                <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" data-chapter="${match.chapter}">
-                    <div class="text-sm text-gray-800 dark:text-gray-200">
-                        ${match.preview}
+            .map((match, index) => {
+                const page = Math.floor(match.index / 1000) + 1; // Rough estimate of page based on character count
+                return `
+                    <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" 
+                         data-chapter="${match.chapter}" 
+                         data-page="${page}">
+                        <div class="text-sm text-gray-800 dark:text-gray-200">
+                            ${match.preview}
+                        </div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Chapter ${match.chapter + 1}, Page ${page} • Match ${index + 1} of ${allResults.length}
+                        </div>
                     </div>
-                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                        Chapter ${match.chapter + 1}, Match ${index + 1} of ${allResults.length}
-                    </div>
-                </div>
-            `)
+                `;
+            })
             .join('');
 
         // Add click handlers to results
@@ -459,7 +467,8 @@ async function handleSearch() {
         resultElements.forEach(element => {
             element.addEventListener('click', () => {
                 const chapter = parseInt(element.dataset.chapter);
-                displayChapter(chapter);
+                const page = parseInt(element.dataset.page);
+                displayChapter(chapter, page);
                 toggleSearch();
             });
         });
@@ -507,12 +516,13 @@ function saveBookmarks() {
 function toggleBookmark() {
     const currentLocation = {
         chapter: currentChapter,
+        page: currentPage,
         title: currentBook.titles[currentChapter],
         timestamp: new Date().toISOString(),
         preview: getPreviewText()
     };
 
-    const existingIndex = bookmarks.findIndex(b => b.chapter === currentChapter);
+    const existingIndex = bookmarks.findIndex(b => b.chapter === currentChapter && b.page === currentPage);
     if (existingIndex >= 0) {
         bookmarks.splice(existingIndex, 1);
         document.getElementById('bookmarkButton').innerHTML = `
@@ -545,12 +555,12 @@ function displayBookmarks() {
                 ${bookmark.title}
             </button>
             <div class="text-xs text-gray-500">
-                ${new Date(bookmark.timestamp).toLocaleDateString()}
+                Page ${bookmark.page} • ${new Date(bookmark.timestamp).toLocaleDateString()}
             </div>
             ${bookmark.preview ? `<div class="text-xs text-gray-600 dark:text-gray-400 mt-1">${bookmark.preview}</div>` : ''}
         `;
         textDiv.onclick = () => {
-            displayChapter(bookmark.chapter);
+            displayChapter(bookmark.chapter, bookmark.page);
             toggleSidebar();
         };
 
@@ -807,8 +817,8 @@ async function loadEpubFile() {
     }
 }
 
-// Update displayChapter function to properly inject CSS
-async function displayChapter(index) {
+// Update displayChapter function to handle page navigation
+async function displayChapter(index, targetPage = 1) {
     try {
         currentChapter = index;
         const chapter = currentBook.chapters[index];
@@ -831,7 +841,6 @@ async function displayChapter(index) {
         }
 
         // Process font faces with loaded fonts and preloading hints
-        // Add preload hints for fonts
         const preloadHints = Object.entries(currentBook.fonts)
             .map(([key, font]) => `
                 <link rel="preload"
@@ -841,7 +850,7 @@ async function displayChapter(index) {
                       crossorigin="anonymous">`)
             .join('\n');
 
-        // Add font-face declarations with proper font variations
+        // Add font-face declarations
         combinedStyles += Object.entries(currentBook.fonts)
             .map(([key, font]) => `
                 @font-face {
@@ -880,28 +889,29 @@ async function displayChapter(index) {
         styleElement.textContent = combinedStyles;
         document.head.appendChild(styleElement);
 
-        // Update the content
+        // Update the content container styles
         const readerContent = document.getElementById('reader-content');
         if (readerContent) {
-            readerContent.innerHTML = content;
-
-            // Apply current font size
             readerContent.style.fontSize = `${currentFontSize}px`;
-        }
-
-        // Update bookmark button state
-        const bookmarkButton = document.getElementById('bookmarkButton');
-        if (bookmarkButton) {
-            const isBookmarked = bookmarks.some(b => b.chapter === currentChapter);
-            bookmarkButton.innerHTML = isBookmarked
-                ? '<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path></svg>'
-                : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>';
-        }
-
-        // Update page navigation
-        const currentPageElement = document.getElementById('currentPage');
-        if (currentPageElement) {
-            currentPageElement.textContent = `${currentChapter + 1} of ${currentBook.chapters.length}`;
+            readerContent.style.height = '100%';
+            readerContent.style.position = 'relative';
+            readerContent.style.overflow = 'hidden';
+            
+            // Wait for fonts to load
+            await document.fonts.ready;
+            
+            // Calculate and store pages for this chapter
+            const { pages, count } = calculatePages(content);
+            currentBook.chapters[currentChapter].pages = pages;
+            pagesPerChapter.set(currentChapter, count);
+            
+            // Display the target page
+            currentPage = Math.min(targetPage, count);
+            readerContent.innerHTML = pages[currentPage - 1];
+            
+            // Update displays
+            updatePageDisplay();
+            updateBookmarkState();
         }
 
     } catch (error) {
@@ -987,18 +997,19 @@ function setupControls() {
         currentFontSize = parseInt(e.target.value);
         updateFontSize();
         storage.setItem('epub-font-size', currentFontSize);
+        
+        // Recalculate pages when font size changes
+        if (currentBook) {
+            const content = currentBook.chapters[currentChapter].content;
+            const pages = calculatePages(content);
+            pagesPerChapter.set(currentChapter, pages);
+            goToPage(Math.min(currentPage, pages));
+        }
     };
 
     // Navigation
-    document.getElementById('prevPage').onclick = () => {
-        if (currentChapter > 0) displayChapter(currentChapter - 1);
-    };
-
-    document.getElementById('nextPage').onclick = () => {
-        if (currentChapter < currentBook.chapters.length - 1) {
-            displayChapter(currentChapter + 1);
-        }
-    };
+    document.getElementById('prevPage').onclick = prevPage;
+    document.getElementById('nextPage').onclick = nextPage;
 
     // Sidebar controls
     document.getElementById('menuButton').onclick = toggleSidebar;
@@ -1034,15 +1045,24 @@ function setupControls() {
 
         switch (e.key) {
             case 'ArrowLeft':
-                if (currentChapter > 0) displayChapter(currentChapter - 1);
+                prevPage();
                 break;
             case 'ArrowRight':
-                if (currentChapter < currentBook.chapters.length - 1) {
-                    displayChapter(currentChapter + 1);
-                }
+                nextPage();
                 break;
         }
     });
+
+    // Handle scroll events for page tracking
+    const readerContent = document.getElementById('reader-content');
+    if (readerContent) {
+        readerContent.addEventListener('scroll', debounce(() => {
+            const pageHeight = readerContent.clientHeight;
+            currentPage = Math.floor(readerContent.scrollTop / pageHeight) + 1;
+            updatePageDisplay();
+            updateBookmarkState();
+        }, 100));
+    }
 }
 
 // Utility function for debouncing
@@ -1059,7 +1079,7 @@ function debounce(func, wait) {
 }
 
 function updateBookmarkState() {
-    const isBookmarked = bookmarks.some(b => b.chapter === currentChapter);
+    const isBookmarked = bookmarks.some(b => b.chapter === currentChapter && b.page === currentPage);
     document.getElementById('bookmarkButton').innerHTML = isBookmarked
         ? `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
@@ -1067,6 +1087,151 @@ function updateBookmarkState() {
         : `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
            </svg>`;
+}
+
+// Pagination functions
+function calculatePages(content) {
+    const container = document.getElementById('reader-content');
+    const tempDiv = document.createElement('div');
+    
+    // Copy all relevant styles from the container
+    tempDiv.style.cssText = window.getComputedStyle(container).cssText;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.visibility = 'hidden';
+    tempDiv.style.width = container.clientWidth + 'px';
+    tempDiv.style.height = container.clientHeight + 'px';
+    tempDiv.style.fontSize = currentFontSize + 'px';
+    tempDiv.style.padding = window.getComputedStyle(container).padding;
+    tempDiv.style.boxSizing = 'border-box';
+    tempDiv.style.overflow = 'hidden';
+    
+    // Split content into pages
+    const pages = [];
+    let currentPage = '';
+    const words = content.split(/\s+/);
+    
+    tempDiv.innerHTML = '';
+    document.body.appendChild(tempDiv);
+    
+    for (const word of words) {
+        const testContent = currentPage + ' ' + word;
+        tempDiv.innerHTML = testContent;
+        
+        if (tempDiv.scrollHeight > container.clientHeight) {
+            pages.push(currentPage);
+            currentPage = word;
+        } else {
+            currentPage = testContent;
+        }
+    }
+    
+    if (currentPage) {
+        pages.push(currentPage);
+    }
+    
+    document.body.removeChild(tempDiv);
+    return { pages, count: pages.length };
+}
+
+function goToPage(pageNum) {
+    const container = document.getElementById('reader-content');
+    const pages = currentBook.chapters[currentChapter].pages;
+    if (!pages || pageNum < 1 || pageNum > pages.length) return;
+  
+    const isForward = pageNum > currentPage;
+  
+    // Create a wrapper for perspective
+    const wrapper = document.createElement('div');
+    wrapper.className = 'absolute inset-0';
+    wrapper.style.perspective = '2000px';
+    wrapper.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+  
+    // Main page container
+    const pageContainer = document.createElement('div');
+    pageContainer.className = 'absolute inset-0';
+  
+    // The static page underneath
+    const staticPage = document.createElement('div');
+    staticPage.className = 'absolute inset-0';
+    staticPage.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+    // For backward navigation, static page shows the new page
+    // For forward navigation, static page shows the new page
+    staticPage.innerHTML = pages[pageNum - 1];
+  
+    // The flipping page
+    const turningPage = document.createElement('div');
+    turningPage.className = 'absolute inset-0';
+    turningPage.style.transformStyle = 'preserve-3d';
+    turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
+  
+    // Front and back faces
+    const pageFront = document.createElement('div');
+    pageFront.className = 'page-face page-face-front';
+    pageFront.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+  
+    const pageBack = document.createElement('div');
+    pageBack.className = 'page-face page-face-back';
+    pageBack.style.backgroundColor = window.getComputedStyle(container).backgroundColor;
+  
+    // For backward navigation:
+    //   - front = current page (will flip away)
+    //   - back = empty (since new page is static underneath)
+    // For forward navigation:
+    //   - front = current page (will flip away)
+    //   - back = new page (will be revealed)
+    pageFront.innerHTML = pages[currentPage - 1];
+    pageBack.innerHTML = isForward ? pages[pageNum - 1] : '';
+  
+    turningPage.appendChild(pageFront);
+    turningPage.appendChild(pageBack);
+  
+    pageContainer.appendChild(staticPage);
+    pageContainer.appendChild(turningPage);
+    wrapper.appendChild(pageContainer);
+  
+    container.innerHTML = '';
+    container.appendChild(wrapper);
+  
+    // Add the correct class to trigger the keyframe
+    requestAnimationFrame(() => {
+      turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+    });
+  
+    // Cleanup after animation
+    turningPage.addEventListener('animationend', () => {
+      container.innerHTML = pages[pageNum - 1];
+      currentPage = pageNum;
+      updatePageDisplay();
+      updateBookmarkState();
+    }, { once: true });
+  }
+  
+
+
+function nextPage() {
+    const chapterPages = pagesPerChapter.get(currentChapter) || 1;
+    if (currentPage < chapterPages) {
+        goToPage(currentPage + 1);
+    } else if (currentChapter < currentBook.chapters.length - 1) {
+        displayChapter(currentChapter + 1, 1);
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        goToPage(currentPage - 1);
+    } else if (currentChapter > 0) {
+        const prevChapterPages = pagesPerChapter.get(currentChapter - 1) || 1;
+        displayChapter(currentChapter - 1, prevChapterPages);
+    }
+}
+
+function updatePageDisplay() {
+    const chapterPages = pagesPerChapter.get(currentChapter) || 1;
+    const currentPageElement = document.getElementById('currentPage');
+    if (currentPageElement) {
+        currentPageElement.textContent = `Chapter ${currentChapter + 1} of ${currentBook.chapters.length} • Page ${currentPage} of ${chapterPages}`;
+    }
 }
 
 // Initialize application

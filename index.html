@@ -36,6 +36,56 @@
             }
         }
     </script>
+    <style>
+        @keyframes pageTurnBackward {
+          0% {
+            transform: perspective(2000px) rotateY(-180deg) scaleY(1.2);
+            transform-origin: left center;
+          }
+            50% {
+                transform: perspective(2000px) rotateY(-90deg) scaleY(1);
+                transform-origin: left center;
+            }
+          100% {
+            transform: perspective(2000px) rotateY(0deg) scaleY(1);
+            transform-origin: left center;
+          }
+        }
+      
+        @keyframes pageTurnForward {
+          0% {
+            transform: perspective(2000px) rotateY(0deg) scaleY(1);
+            transform-origin: left center;
+          }
+            50% {
+                transform: perspective(2000px) rotateY(-90deg) scaleY(1);
+                transform-origin: left center;
+            }
+          100% {
+            transform: perspective(2000px) rotateY(-180deg) scaleY(1.2);
+            transform-origin: left center;
+          }
+        }
+      
+        .turn-forward {
+          animation: pageTurnForward 0.8s ease forwards;
+          transform-origin: left center; /* just to be sure */
+        }
+        .turn-backward {
+          animation: pageTurnBackward 0.8s ease forwards;
+          transform-origin: left center;
+        }
+      
+        .page-face {
+          position: absolute;
+          inset: 0;
+          backface-visibility: hidden;
+        }
+        .page-face-back {
+          transform: rotateY(180deg);
+        }
+      </style>
+      
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 sepia:from-sepia-50 sepia:to-sepia-100 h-screen overflow-hidden transition-colors duration-300">
     <!-- Animated Loading Overlay -->
