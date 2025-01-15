@@ -825,7 +825,7 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
         // Store old chapter info for animation
         const oldChapter = currentChapter;
         const oldContent = document.getElementById('reader-content').innerHTML;
-        
+
         currentChapter = index;
         const chapter = currentBook.chapters[index];
         let content = chapter.content;
@@ -912,22 +912,22 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             readerContent.style.height = '100%';
             readerContent.style.position = 'relative';
             readerContent.style.overflow = 'hidden';
-            
+
             // Wait for fonts to load
             await document.fonts.ready;
-            
+
             // Calculate and store pages for this chapter
             const { pages, count } = calculatePages(content);
             currentBook.chapters[currentChapter].pages = pages;
             pagesPerChapter.set(currentChapter, count);
-            
+
             // Instead of directly setting innerHTML, use the page turn animation
             const isForwardAnim = isForward !== undefined ? isForward : index > oldChapter;
-            
+
             // Create temporary content for animation
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = pages[targetPage - 1];
-            
+
             // Use goToPage-style animation for chapter transition
             const container = readerContent;
             const computedStyle = window.getComputedStyle(container);
@@ -1021,7 +1021,7 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             // Update final content
             container.innerHTML = pages[targetPage - 1];
             Object.assign(container.style, currentStyles);
-            
+
             // Set current page and update displays
             currentPage = targetPage;
             updatePageDisplay();
@@ -1107,18 +1107,26 @@ function setupControls() {
 
     // Font size control
     document.getElementById('fontSize').value = currentFontSize;
-    document.getElementById('fontSize').onchange = (e) => {
+    document.getElementById('fontSize').onchange = async (e) => {
         currentFontSize = parseInt(e.target.value);
+
+        // Optionally update immediately so the text resizes right away
         updateFontSize();
+
+        // Save the new size in storage
         storage.setItem('epub-font-size', currentFontSize);
-        
-        // Recalculate pages when font size changes
-        if (currentBook) {
-            const content = currentBook.chapters[currentChapter].content;
-            const pages = calculatePages(content);
-            pagesPerChapter.set(currentChapter, pages);
-            goToPage(Math.min(currentPage, pages));
+
+        // Recalculate pagination for the entire book
+        await loadTotalPages();
+
+        // Clamp the current page if it exceeds the new total in this chapter
+        const totalCurrentChapterPages = pagesPerChapter.get(currentChapter) || 1;
+        if (currentPage > totalCurrentChapterPages) {
+            currentPage = totalCurrentChapterPages;
         }
+
+        // Redisplay the current chapter at the same page number if possible
+        displayChapter(currentChapter, currentPage);
     };
 
     // Navigation
@@ -1207,7 +1215,7 @@ function updateBookmarkState() {
 function calculatePages(content) {
     const container = document.getElementById('reader-content');
     const tempDiv = document.createElement('div');
-    
+
     // Setup temp div with same styles but account for bottom bar
     tempDiv.style.cssText = window.getComputedStyle(container).cssText;
     tempDiv.style.position = 'absolute';
@@ -1219,7 +1227,7 @@ function calculatePages(content) {
     tempDiv.style.padding = window.getComputedStyle(container).padding;
     tempDiv.style.boxSizing = 'border-box';
     tempDiv.style.overflow = 'hidden';
-    
+
     document.body.appendChild(tempDiv);
     const pages = [];
     const pageHeight = container.clientHeight;
@@ -1229,11 +1237,11 @@ function calculatePages(content) {
         let low = 0;
         let high = text.length;
         let bestPos = 0;
-        
+
         while (low <= high) {
             const mid = Math.floor((low + high) / 2);
             tempDiv.innerHTML = text.substring(0, mid);
-            
+
             if (tempDiv.scrollHeight < maxHeight) {
                 bestPos = mid;
                 low = mid + 1;
@@ -1257,13 +1265,13 @@ function calculatePages(content) {
             let match;
             let lastMatch = null;
             regex.lastIndex = 0;
-            
+
             while ((match = regex.exec(searchText)) !== null) {
                 const globalPos = Math.max(0, bestPos - distance) + match.index + match[0].length;
                 if (globalPos > bestPos) break;
                 lastMatch = globalPos;
             }
-            
+
             if (lastMatch !== null) {
                 tempDiv.innerHTML = text.substring(0, lastMatch);
                 if (tempDiv.scrollHeight < maxHeight) {
@@ -1279,7 +1287,7 @@ function calculatePages(content) {
     let remainingContent = content;
     while (remainingContent.length > 0) {
         tempDiv.innerHTML = remainingContent;
-        
+
         if (tempDiv.scrollHeight < pageHeight) {
             // All remaining content fits on one page
             pages.push(remainingContent);
@@ -1307,9 +1315,9 @@ function goToPage(pageNum) {
     const container = document.getElementById('reader-content');
     const pages = currentBook.chapters[currentChapter].pages;
     if (!pages || pageNum < 1 || pageNum > pages.length) return;
-  
+
     const isForward = pageNum > currentPage;
-    
+
     // Capture current styles
     const computedStyle = window.getComputedStyle(container);
     const currentStyles = {
@@ -1321,17 +1329,17 @@ function goToPage(pageNum) {
         fontFamily: computedStyle.fontFamily,
         // Add any other relevant styles
     };
-  
+
     // Create a wrapper for perspective
     const wrapper = document.createElement('div');
     wrapper.className = 'absolute inset-0';
     wrapper.style.perspective = '2000px';
     wrapper.style.backgroundColor = currentStyles.backgroundColor;
-  
+
     // Main page container
     const pageContainer = document.createElement('div');
     pageContainer.className = 'absolute inset-0';
-  
+
     // Apply consistent styles to all page elements
     const applyCommonStyles = (element) => {
         Object.assign(element.style, {
@@ -1346,7 +1354,7 @@ function goToPage(pageNum) {
             transition: 'none', // Prevent any unwanted transitions
         });
     };
-  
+
     // The static page underneath should show the target page content
     const staticPage = document.createElement('div');
     staticPage.className = 'absolute inset-0';
@@ -1357,23 +1365,23 @@ function goToPage(pageNum) {
     } else {
         staticPage.innerHTML = pages[currentPage - 1];
     }
-  
+
     // The flipping page
     const turningPage = document.createElement('div');
     turningPage.className = 'absolute inset-0';
     applyCommonStyles(turningPage);
     turningPage.style.transformStyle = 'preserve-3d';
     turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
-  
+
     // Front and back faces - swap content based on direction
     const pageFront = document.createElement('div');
     pageFront.className = 'page-face page-face-front';
     applyCommonStyles(pageFront);
-  
+
     const pageBack = document.createElement('div');
     pageBack.className = 'page-face page-face-back';
     applyCommonStyles(pageBack);
-  
+
     if (isForward) {
         pageFront.innerHTML = pages[currentPage - 1];  // Current page on front
         pageBack.innerHTML = pages[pageNum - 1];       // New page on back
@@ -1381,32 +1389,32 @@ function goToPage(pageNum) {
         pageFront.innerHTML = pages[pageNum - 1];      // New page on front
         pageBack.innerHTML = pages[currentPage - 1];    // Current page on back
     }
-  
+
     turningPage.appendChild(pageFront);
     turningPage.appendChild(pageBack);
-  
+
     pageContainer.appendChild(staticPage);
     pageContainer.appendChild(turningPage);
     wrapper.appendChild(pageContainer);
-  
+
     // Store the original content for cleanup
     const originalContent = container.innerHTML;
-    
+
     // Apply the new content
     container.innerHTML = '';
     container.appendChild(wrapper);
-  
+
     // Add the correct class to trigger the keyframe
     requestAnimationFrame(() => {
         turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
     });
-  
+
     // Update the static page content halfway through the animation
     turningPage.addEventListener('animationend', () => {
         // Apply the new content with the same styles
         container.innerHTML = pages[pageNum - 1];
         Object.assign(container.style, currentStyles);
-        
+
         currentPage = pageNum;
         updatePageDisplay();
         updateBookmarkState();
@@ -1457,7 +1465,7 @@ async function loadTotalPages() {
     // Pre-calculate pages for all chapters
     updateLoadingProgress(1, 'Calculating chapter layout...');
     console.log('Starting page calculations...');
-    
+
     // Create a temporary div for page calculations
     const tempDiv = document.createElement('div');
     const readerContent = document.getElementById('reader-content');
@@ -1480,19 +1488,19 @@ async function loadTotalPages() {
     for (let i = 0; i < currentBook.chapters.length; i++) {
         // Use requestAnimationFrame to avoid blocking the main thread
         //await new Promise(resolve => requestAnimationFrame(resolve));
-        
+
         const { pages, count } = calculatePages(currentBook.chapters[i].content);
         currentBook.chapters[i].pages = pages;
         pagesPerChapter.set(i, count);
         totalPages += count;
-        
+
         console.log(`Chapter ${i + 1}: ${count} pages (Running total: ${totalPages})`);
-        
+
         // Update loading progress
         const progress = Math.round((i / currentBook.chapters.length) * 100);
         updateLoadingProgress(progress, 
             `Calculating layout for chapter ${i + 1} of ${currentBook.chapters.length}...`);
-        
+
         // Give the UI a chance to update
         await new Promise(resolve => setTimeout(resolve, 0));
     }
