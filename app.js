@@ -822,10 +822,6 @@ async function loadEpubFile() {
 // Update displayChapter function to handle page navigation
 async function displayChapter(index, targetPage = 1, isForward = true) {
     try {
-        // Store old chapter info for animation
-        const oldChapter = currentChapter;
-        const oldContent = document.getElementById('reader-content').innerHTML;
-
         currentChapter = index;
         const chapter = currentBook.chapters[index];
         let content = chapter.content;
@@ -833,51 +829,84 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
         // Create a style element for all CSS
         let combinedStyles = '';
 
-        // Add all processed stylesheet contents
+        // Add CSS custom properties first
+        combinedStyles += '\n:root {\n';
+        currentBook.customProperties.forEach((value, key) => {
+            combinedStyles += `    ${key}: ${value};\n`;
+        });
+        combinedStyles += '}\n';
+
+        // Add all processed stylesheet contents from the ebook with higher specificity
         const linkedStyles = chapter.linkedStyles;
         for (const cssPath of linkedStyles) {
             if (currentBook.styles[cssPath]) {
-                combinedStyles += currentBook.styles[cssPath] + '\n';
+                // Wrap ebook styles in a higher specificity selector
+                combinedStyles += `#reader-content .chapter-content {\n${currentBook.styles[cssPath]}\n}\n`;
             }
         }
 
-        // Add chapter's internal styles
+        // Add chapter's internal styles with higher specificity
         if (chapter.internalStyles) {
-            combinedStyles += chapter.internalStyles + '\n';
+            combinedStyles += `#reader-content .chapter-content {\n${chapter.internalStyles}\n}\n`;
         }
 
-        // Process font faces with loaded fonts and preloading hints
-        const preloadHints = Object.entries(currentBook.fonts)
-            .map(([key, font]) => `
-                <link rel="preload"
-                      href="${font.data}"
-                      as="font"
-                      type="${font.mimeType}"
-                      crossorigin="anonymous">`)
-            .join('\n');
-
-        // Add font-face declarations
-        combinedStyles += Object.entries(currentBook.fonts)
-            .map(([key, font]) => `
-                @font-face {
-                    font-family: '${font.family}';
-                    font-weight: ${font.weight};
-                    font-style: ${font.style};
-                    font-display: swap;
-                }
-            `).join('\n');
-
-        // Add custom image handling CSS
+        // Add essential reader layout styles with lower specificity
         combinedStyles += `
-            img {
+            /* Reader layout styles */
+            .chapter-content {
+                padding: 2rem;
+                column-fill: auto;
+                height: 100%;
+            }
+            
+            /* Basic column break handling */
+            .chapter-content h1, 
+            .chapter-content h2, 
+            .chapter-content h3, 
+            .chapter-content h4, 
+            .chapter-content h5, 
+            .chapter-content h6, 
+            .chapter-content img, 
+            .chapter-content table, 
+            .chapter-content pre {
+                break-inside: avoid;
+                break-before: auto;
+                break-after: auto;
+            }
+            
+            /* Default spacing only if not specified by ebook */
+            .chapter-content p:not([style*="margin"]) {
+                margin: 1em 0;
+                orphans: 2;
+                widows: 2;
+            }
+            
+            /* Default heading margins only if not specified by ebook */
+            .chapter-content h1:not([style*="margin"]),
+            .chapter-content h2:not([style*="margin"]),
+            .chapter-content h3:not([style*="margin"]),
+            .chapter-content h4:not([style*="margin"]),
+            .chapter-content h5:not([style*="margin"]),
+            .chapter-content h6:not([style*="margin"]) {
+                margin-top: 1.5em;
+                margin-bottom: 0.5em;
+            }
+
+            /* Essential image handling */
+            .chapter-content img:not([style*="width"]) {
                 max-width: 100%;
                 height: auto;
+            }
+            .chapter-content img:not([style*="height"]) {
                 max-height: 85vh;
-                object-fit: contain;
+            }
+            .chapter-content img:not([style*="display"]) {
+                display: block;
+                margin: 1em auto;
             }
         `;
 
-        // Replace image sources with base64 data
+        // Process images
         content = content.replace(
             /<img[^>]+src="([^"]+)"[^>]*>/g,
             (match, src) => {
@@ -887,13 +916,6 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
                     : match;
             }
         );
-
-        // Add CSS custom properties
-        combinedStyles += '\n:root {\n';
-        currentBook.customProperties.forEach((value, key) => {
-            combinedStyles += `    ${key}: ${value};\n`;
-        });
-        combinedStyles += '}\n';
 
         // Remove any existing EPUB styles
         const existingStyles = document.querySelectorAll('style[data-epub-styles]');
@@ -908,121 +930,39 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
         // Update the content container styles
         const readerContent = document.getElementById('reader-content');
         if (readerContent) {
-            readerContent.style.fontSize = `${currentFontSize}px`;
-            readerContent.style.height = '100%';
-            readerContent.style.position = 'relative';
-            readerContent.style.overflow = 'hidden';
+            // Calculate initial dimensions
+            const { columnWidth, columnGap } = getPageDimensions(readerContent);
+            
+            // Apply only essential layout styles
+            Object.assign(readerContent.style, {
+                fontSize: `${currentFontSize}px`,
+                columnWidth: columnWidth + 'px',
+                columnGap: columnGap + 'px',
+                columnFill: 'auto',
+                height: '100%',
+                overflow: 'hidden',
+                padding: '0',
+                margin: '0'
+            });
 
             // Wait for fonts to load
             await document.fonts.ready;
 
-            // Calculate and store pages for this chapter
-            const { pages, count } = calculatePages(content);
-            currentBook.chapters[currentChapter].pages = pages;
-            pagesPerChapter.set(currentChapter, count);
-
-            // Instead of directly setting innerHTML, use the page turn animation
-            const isForwardAnim = isForward !== undefined ? isForward : index > oldChapter;
-
-            // Create temporary content for animation
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pages[targetPage - 1];
-
-            // Use goToPage-style animation for chapter transition
-            const container = readerContent;
-            const computedStyle = window.getComputedStyle(container);
-            const currentStyles = {
-                fontSize: computedStyle.fontSize,
-                lineHeight: computedStyle.lineHeight,
-                padding: computedStyle.padding,
-                color: computedStyle.color,
-                backgroundColor: computedStyle.backgroundColor,
-                fontFamily: computedStyle.fontFamily,
-            };
-
-            // Create wrapper for perspective
-            const wrapper = document.createElement('div');
-            wrapper.className = 'absolute inset-0';
-            wrapper.style.perspective = '2000px';
-            wrapper.style.backgroundColor = currentStyles.backgroundColor;
-
-            // Main page container
-            const pageContainer = document.createElement('div');
-            pageContainer.className = 'absolute inset-0';
-
-            // Apply consistent styles
-            const applyCommonStyles = (element) => {
-                Object.assign(element.style, {
-                    ...currentStyles,
-                    position: 'absolute',
-                    inset: '0',
-                    margin: '0',
-                    overflow: 'hidden',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                    transformStyle: 'preserve-3d',
-                    transition: 'none',
-                });
-            };
-
-            // Static page
-            const staticPage = document.createElement('div');
-            staticPage.className = 'absolute inset-0';
-            applyCommonStyles(staticPage);
-
-            if (isForwardAnim) {
-                staticPage.innerHTML = pages[targetPage - 1];
-            } else {
-                staticPage.innerHTML = oldContent;
-            }
-
-            // Turning page
-            const turningPage = document.createElement('div');
-            turningPage.className = 'absolute inset-0';
-            applyCommonStyles(turningPage);
-            turningPage.style.transformStyle = 'preserve-3d';
-            turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
-
-            // Front and back faces
-            const pageFront = document.createElement('div');
-            pageFront.className = 'page-face page-face-front';
-            applyCommonStyles(pageFront);
-
-            const pageBack = document.createElement('div');
-            pageBack.className = 'page-face page-face-back';
-            applyCommonStyles(pageBack);
-
-            if (isForwardAnim) {
-                pageFront.innerHTML = oldContent;
-                pageBack.innerHTML = pages[targetPage - 1];
-            } else {
-                pageFront.innerHTML = pages[targetPage - 1];
-                pageBack.innerHTML = oldContent;
-            }
-
-            turningPage.appendChild(pageFront);
-            turningPage.appendChild(pageBack);
-            pageContainer.appendChild(staticPage);
-            pageContainer.appendChild(turningPage);
-            wrapper.appendChild(pageContainer);
-
-            container.innerHTML = '';
-            container.appendChild(wrapper);
-
-            requestAnimationFrame(() => {
-                turningPage.classList.add(isForwardAnim ? 'turn-forward' : 'turn-backward');
+            // Wrap content in a container div
+            const wrappedContent = `<div class="chapter-content">${content}</div>`;
+            
+            // Set content and scroll to target page
+            readerContent.innerHTML = wrappedContent;
+            
+            // Get final dimensions after content is loaded
+            const { pageWidth } = getPageDimensions(readerContent);
+            const targetOffset = (targetPage - 1) * pageWidth;
+            
+            readerContent.scrollTo({
+                left: targetOffset,
+                behavior: 'smooth'
             });
 
-            // Wait for animation to complete
-            await new Promise(resolve => {
-                turningPage.addEventListener('animationend', resolve, { once: true });
-            });
-
-            // Update final content
-            container.innerHTML = pages[targetPage - 1];
-            Object.assign(container.style, currentStyles);
-
-            // Set current page and update displays
             currentPage = targetPage;
             updatePageDisplay();
             updateBookmarkState();
@@ -1215,210 +1155,78 @@ function updateBookmarkState() {
 function calculatePages(content) {
     const container = document.getElementById('reader-content');
     const tempDiv = document.createElement('div');
-
-    // Setup temp div with same styles but account for bottom bar
+    
+    // Apply the same styles as the container
     tempDiv.style.cssText = window.getComputedStyle(container).cssText;
     tempDiv.style.position = 'absolute';
     tempDiv.style.visibility = 'hidden';
     tempDiv.style.width = container.clientWidth + 'px';
-    // Subtract the height of the bottom bar (approximately 32px)
-    tempDiv.style.height = (container.clientHeight - 32) + 'px';
+    tempDiv.style.height = container.clientHeight + 'px';
     tempDiv.style.fontSize = currentFontSize + 'px';
-    tempDiv.style.padding = window.getComputedStyle(container).padding;
+    tempDiv.style.padding = '0';
+    tempDiv.style.margin = '0';
     tempDiv.style.boxSizing = 'border-box';
-    tempDiv.style.overflow = 'hidden';
-
+    tempDiv.style.columnWidth = container.clientWidth + 'px';
+    tempDiv.style.columnGap = '40px';
+    tempDiv.style.columnFill = 'auto';
+    
+    // Add content with wrapper
+    tempDiv.innerHTML = `<div class="chapter-content">${content}</div>`;
     document.body.appendChild(tempDiv);
-    const pages = [];
-    const pageHeight = container.clientHeight;
-
-    // Helper function to find the best split position
-    function findBestSplitPosition(text, maxHeight) {
-        let low = 0;
-        let high = text.length;
-        let bestPos = 0;
-
-        while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            tempDiv.innerHTML = text.substring(0, mid);
-
-            if (tempDiv.scrollHeight < maxHeight) {
-                bestPos = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        // Walk back to find a natural break point (paragraph, sentence, or word)
-        let finalPos = bestPos;
-        const naturalBreaks = [
-            { regex: /(<\/p>|<\/div>|<\/section>|<\/article>)/g, distance: 100 },
-            { regex: /([.!?])\s+/g, distance: 50 },
-            { regex: /[,;:]\s+/g, distance: 30 },
-            { regex: /\s+/g, distance: 20 }
-        ];
-
-        for (const { regex, distance } of naturalBreaks) {
-            const searchText = text.substring(Math.max(0, bestPos - distance), 
-                                           Math.min(text.length, bestPos + distance));
-            let match;
-            let lastMatch = null;
-            regex.lastIndex = 0;
-
-            while ((match = regex.exec(searchText)) !== null) {
-                const globalPos = Math.max(0, bestPos - distance) + match.index + match[0].length;
-                if (globalPos > bestPos) break;
-                lastMatch = globalPos;
-            }
-
-            if (lastMatch !== null) {
-                tempDiv.innerHTML = text.substring(0, lastMatch);
-                if (tempDiv.scrollHeight < maxHeight) {
-                    finalPos = lastMatch;
-                    break;
-                }
-            }
-        }
-
-        return finalPos;
-    }
-
-    let remainingContent = content;
-    while (remainingContent.length > 0) {
-        tempDiv.innerHTML = remainingContent;
-
-        if (tempDiv.scrollHeight < pageHeight) {
-            // All remaining content fits on one page
-            pages.push(remainingContent);
-            break;
-        }
-
-        const splitPos = findBestSplitPosition(remainingContent, pageHeight);
-        if (splitPos === 0) {
-            // Emergency fallback: if we can't find a good split point, force split
-            console.warn('Forced page split - content might be too large for page');
-            pages.push(remainingContent);
-            break;
-        }
-
-        // Add page and continue with remaining content
-        pages.push(remainingContent.substring(0, splitPos));
-        remainingContent = remainingContent.substring(splitPos).trim();
-    }
-
+    
+    // Calculate total pages based on scroll width
+    const totalWidth = tempDiv.scrollWidth;
+    const columnWidth = tempDiv.clientWidth;
+    const columnGap = parseInt(window.getComputedStyle(tempDiv).columnGap);
+    const pageWidth = columnWidth + columnGap;
+    const pageCount = Math.max(1, Math.ceil(totalWidth / pageWidth));
+    
     document.body.removeChild(tempDiv);
-    return { pages, count: pages.length };
+    
+    return { content, count: pageCount, columnWidth, columnGap };
+}
+
+function getPageDimensions(container) {
+    const style = window.getComputedStyle(container);
+    const columnWidth = parseInt(style.columnWidth) || container.clientWidth;
+    const columnGap = parseInt(style.columnGap) || 40;
+    return { columnWidth, columnGap, pageWidth: columnWidth + columnGap };
 }
 
 function goToPage(pageNum) {
     const container = document.getElementById('reader-content');
-    const pages = currentBook.chapters[currentChapter].pages;
-    if (!pages || pageNum < 1 || pageNum > pages.length) return;
+    const content = currentBook.chapters[currentChapter].content;
 
-    const isForward = pageNum > currentPage;
+    // Get actual dimensions from the DOM
+    const { columnWidth, columnGap, pageWidth } = getPageDimensions(container);
 
-    // Capture current styles
-    const computedStyle = window.getComputedStyle(container);
-    const currentStyles = {
-        fontSize: computedStyle.fontSize,
-        lineHeight: computedStyle.lineHeight,
-        padding: computedStyle.padding,
-        color: computedStyle.color,
-        backgroundColor: computedStyle.backgroundColor,
-        fontFamily: computedStyle.fontFamily,
-        // Add any other relevant styles
-    };
+    // Calculate the offset for the target page
+    const targetOffset = (pageNum - 1) * pageWidth;
 
-    // Create a wrapper for perspective
-    const wrapper = document.createElement('div');
-    wrapper.className = 'absolute inset-0';
-    wrapper.style.perspective = '2000px';
-    wrapper.style.backgroundColor = currentStyles.backgroundColor;
-
-    // Main page container
-    const pageContainer = document.createElement('div');
-    pageContainer.className = 'absolute inset-0';
-
-    // Apply consistent styles to all page elements
-    const applyCommonStyles = (element) => {
-        Object.assign(element.style, {
-            ...currentStyles,
-            position: 'absolute',
-            inset: '0',
-            margin: '0',
-            overflow: 'hidden',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            transformStyle: 'preserve-3d',
-            transition: 'none', // Prevent any unwanted transitions
-        });
-    };
-
-    // The static page underneath should show the target page content
-    const staticPage = document.createElement('div');
-    staticPage.className = 'absolute inset-0';
-    applyCommonStyles(staticPage);
-
-    if (isForward) {
-        staticPage.innerHTML = pages[pageNum - 1];
-    } else {
-        staticPage.innerHTML = pages[currentPage - 1];
-    }
-
-    // The flipping page
-    const turningPage = document.createElement('div');
-    turningPage.className = 'absolute inset-0';
-    applyCommonStyles(turningPage);
-    turningPage.style.transformStyle = 'preserve-3d';
-    turningPage.style.boxShadow = 'rgba(0, 0, 0, 0.2) 0 0 15px';
-
-    // Front and back faces - swap content based on direction
-    const pageFront = document.createElement('div');
-    pageFront.className = 'page-face page-face-front';
-    applyCommonStyles(pageFront);
-
-    const pageBack = document.createElement('div');
-    pageBack.className = 'page-face page-face-back';
-    applyCommonStyles(pageBack);
-
-    if (isForward) {
-        pageFront.innerHTML = pages[currentPage - 1];  // Current page on front
-        pageBack.innerHTML = pages[pageNum - 1];       // New page on back
-    } else {
-        pageFront.innerHTML = pages[pageNum - 1];      // New page on front
-        pageBack.innerHTML = pages[currentPage - 1];    // Current page on back
-    }
-
-    turningPage.appendChild(pageFront);
-    turningPage.appendChild(pageBack);
-
-    pageContainer.appendChild(staticPage);
-    pageContainer.appendChild(turningPage);
-    wrapper.appendChild(pageContainer);
-
-    // Store the original content for cleanup
-    const originalContent = container.innerHTML;
-
-    // Apply the new content
-    container.innerHTML = '';
-    container.appendChild(wrapper);
-
-    // Add the correct class to trigger the keyframe
-    requestAnimationFrame(() => {
-        turningPage.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+    // Apply column-based layout to container
+    Object.assign(container.style, {
+        columnWidth: columnWidth + 'px',
+        columnGap: columnGap + 'px',
+        columnFill: 'auto',
+        height: '100%',
+        overflow: 'hidden',
+        padding: '0'  // Remove padding from container
     });
 
-    // Update the static page content halfway through the animation
-    turningPage.addEventListener('animationend', () => {
-        // Apply the new content with the same styles
-        container.innerHTML = pages[pageNum - 1];
-        Object.assign(container.style, currentStyles);
+    // Set content if not already set
+    if (!container.firstChild || container.firstChild.nodeType !== Node.ELEMENT_NODE) {
+        container.innerHTML = `<div class="chapter-content" style="padding: 2rem;">${content}</div>`;
+    }
 
-        currentPage = pageNum;
-        updatePageDisplay();
-        updateBookmarkState();
-    }, { once: true });
+    // Smooth scroll to target page
+    container.scrollTo({
+        left: targetOffset,
+        behavior: 'smooth'
+    });
+
+    currentPage = pageNum;
+    updatePageDisplay();
+    updateBookmarkState();
 }
 
 function nextPage() {
@@ -1456,6 +1264,7 @@ function updatePageDisplay() {
 // Initialize application
 function init() {
     setupControls();
+    setupScrollListener();
     loadEpubFile();
 }
 
@@ -1585,4 +1394,25 @@ async function processImages(zip, basePath, manifest) {
             break; // Stop after finding first valid cover image
         }
     }
+}
+
+// Add scroll event listener to handle page detection
+function setupScrollListener() {
+    const container = document.getElementById('reader-content');
+    let scrollTimeout;
+    
+    container.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            const { pageWidth } = getPageDimensions(container);
+            const currentScroll = container.scrollLeft;
+            const newPage = Math.round(currentScroll / pageWidth) + 1;
+            
+            if (newPage !== currentPage) {
+                currentPage = newPage;
+                updatePageDisplay();
+                updateBookmarkState();
+            }
+        }, 100);
+    });
 }

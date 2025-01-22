@@ -92,6 +92,138 @@
             transition: opacity 0.3s ease-in-out;
             -webkit-transition: opacity 0.3s ease-in-out;
         }
+
+        /* Add column-based reader styles */
+        #reader-content {
+            column-gap: 40px;
+            -webkit-column-gap: 40px;
+            column-width: 100%;
+            -webkit-column-width: 100%;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scroll-snap-type: x proximity;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            height: 100%;
+            min-height: 100%;
+            overflow-y: hidden;
+            overflow-x: scroll;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        #reader-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chapter-content {
+            padding: 2rem;
+            box-sizing: border-box;
+            height: 100vh;
+            max-height: 100%;
+            display: block;
+            column-width: 100%;
+            -webkit-column-width: 100%;
+            column-gap: 40px;
+            -webkit-column-gap: 40px;
+            column-fill: auto;
+            -webkit-column-fill: auto;
+            overflow: visible;
+        }
+
+        /* Ensure proper text handling */
+        .chapter-content > * {
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            hyphens: auto;
+            -webkit-hyphens: auto;
+        }
+
+        .chapter-content p,
+        .chapter-content div {
+            margin: 1em 0;
+            text-align: justify;
+            break-inside: auto;
+            page-break-inside: auto;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            hyphens: auto;
+            -webkit-hyphens: auto;
+        }
+
+        /* Only avoid breaks for specific semantic elements */
+        .chapter-content figure,
+        .chapter-content img {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin: 1em 0;
+        }
+
+        .chapter-content h1, 
+        .chapter-content h2, 
+        .chapter-content h3, 
+        .chapter-content h4, 
+        .chapter-content h5, 
+        .chapter-content h6 {
+            break-after: auto;
+            break-inside: auto;
+            page-break-after: auto;
+            page-break-inside: auto;
+            margin: 1.5em 0 0.5em;
+            line-height: 1.2;
+        }
+
+        /* Ensure proper list handling */
+        .chapter-content ul,
+        .chapter-content ol {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            padding-left: 2em;
+        }
+
+        /* Ensure proper table handling */
+        .chapter-content table {
+            break-inside: auto;
+            page-break-inside: auto;
+            margin: 1em 0;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        /* Ensure proper blockquote handling */
+        .chapter-content blockquote {
+            break-inside: auto;
+            page-break-inside: auto;
+            margin: 1em 0;
+            padding-left: 1em;
+            border-left: 3px solid currentColor;
+            opacity: 0.8;
+        }
+
+        /* Ensure proper code block handling */
+        .chapter-content pre,
+        .chapter-content code {
+            break-inside: auto;
+            page-break-inside: auto;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+
+        /* Ensure proper image handling */
+        .chapter-content img {
+            max-width: 100%;
+            height: auto;
+            max-height: 85vh;
+            object-fit: contain;
+            display: block;
+            margin: 1em auto;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
     </style>
     <style>
         @keyframes pageTurnBackward {
@@ -213,9 +345,9 @@
     </div>
 
     <!-- Main Content -->
-    <div id="main" class="h-dvh flex flex-col relative">
+    <div id="main" class="h-dvh flex flex-col">
         <!-- Top Header -->
-        <div class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-sm p-4 flex justify-between items-center z-30">
+        <header class="flex-none bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-sm p-4 flex justify-between items-center z-30">
             <button id="menuButton" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                 <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -233,15 +365,10 @@
                     </svg>
                 </button>
             </div>
-        </div>
+        </header>
 
         <!-- Reader Container -->
-        <div class="flex-1 relative">
-            <div id="reader-content" 
-                 class="absolute inset-0 pb-16 bg-white dark:bg-gray-900 sepia:bg-sepia-50 
-                        px-4 sm:px-8 md:px-12 lg:px-18 z-10">
-            </div>
-
+        <div class="flex-1 min-h-0 bg-white dark:bg-gray-900 sepia:bg-sepia-50">
             <!-- Navigation Buttons -->
             <div class="absolute inset-y-0 left-0 flex items-center w-1/4 group z-20">
                 <button id="prevPage" class="w-full h-full flex items-center justify-start pl-4 opacity-0 hover:opacity-100">
@@ -257,20 +384,24 @@
                     </svg>
                 </button>
             </div>
+
+            <!-- Reader Content -->
+            <div id="reader-content" class="h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
+                <!-- Content will be inserted here -->
+            </div>
         </div>
 
-        <!-- Pinned Bottom Controls -->
-        <div class="fixed bottom-0 inset-x-0 bg-white/95 dark:bg-gray-800/95 
-                    backdrop-blur-sm p-1 text-center border-t border-gray-200 dark:border-gray-700 z-20">
+        <!-- Bottom Bar -->
+        <div class="flex-none bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-1 text-center border-t border-gray-200 dark:border-gray-700 z-30">
             <span id="currentPage" class="text-sm font-medium text-gray-600 dark:text-gray-400"></span>
         </div>
-    </div>
 
-    <!-- Search Overlay -->
-    <div id="searchOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
-        <div class="max-w-lg mx-auto mt-20 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl">
-            <input type="text" id="searchInput" placeholder="Search..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-            <div id="searchResults" class="mt-4 max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700"></div>
+        <!-- Search Overlay -->
+        <div id="searchOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
+            <div class="max-w-lg mx-auto mt-20 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl">
+                <input type="text" id="searchInput" placeholder="Search..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                <div id="searchResults" class="mt-4 max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700"></div>
+            </div>
         </div>
     </div>
 
