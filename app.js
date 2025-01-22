@@ -876,7 +876,7 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             
             /* Default spacing only if not specified by ebook */
             .chapter-content p:not([style*="margin"]) {
-                margin: 1em 0;
+                margin: 1px 0;
                 orphans: 2;
                 widows: 2;
             }
@@ -902,7 +902,7 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             }
             .chapter-content img:not([style*="display"]) {
                 display: block;
-                margin: 1em auto;
+                margin: 1px auto;
             }
         `;
 
@@ -981,7 +981,7 @@ const baseStyles = `
             h1, h2, h3, h4, h5, h6 {
                 font-weight: bold;
                 line-height: 1.2;
-                margin: 1em 0 0.5em;
+                margin: 1px 0 0.5em;
             }
             h1 { font-size: 2em; }
             h2 { font-size: 1.5em; }
@@ -995,8 +995,8 @@ const baseStyles = `
                 white-space: pre-wrap;
             }
             blockquote {
-                margin: 1em 2em;
-                padding-left: 1em;
+                margin: 1px 2em;
+                padding-left: 1px;
                 border-left: 3px solid #ccc;
             }
         `;
