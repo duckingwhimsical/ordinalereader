@@ -104,12 +104,13 @@
             scroll-snap-type: x proximity;
             -ms-overflow-style: none;
             scrollbar-width: none;
-            height: 100%;
-            min-height: 100%;
+            height: calc(100vh - 8rem); /* Adjusted to account for header/footer */
+            min-height: 0; /* Remove min-height constraint */
             overflow-y: hidden;
             overflow-x: scroll;
             display: block;
             box-sizing: border-box;
+            position: relative;
         }
 
         #reader-content::-webkit-scrollbar {
@@ -119,8 +120,8 @@
         .chapter-content {
             padding: 2rem;
             box-sizing: border-box;
-            height: 100vh;
-            max-height: 100%;
+            height: calc(100vh - 8rem); /* Match parent height */
+            max-height: calc(100vh - 8rem); /* Match parent height */
             display: block;
             column-width: 100%;
             -webkit-column-width: 100%;
@@ -217,7 +218,7 @@
         .chapter-content img {
             max-width: 100%;
             height: auto;
-            max-height: 85vh;
+            max-height: calc(100vh - 8rem - 4rem); /* Account for container height minus padding */
             object-fit: contain;
             display: block;
             margin: 1px auto;
