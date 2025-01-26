@@ -850,7 +850,7 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             combinedStyles += `#reader-content .chapter-content {\n${chapter.internalStyles}\n}\n`;
         }
 
-        // Add essential reader layout styles with lower specificity
+        // Add essential reader layout styles
         combinedStyles += `
             /* Reader layout styles */
             .chapter-content {
@@ -945,10 +945,8 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             const { pageWidth } = getPageDimensions(readerContent);
             const targetOffset = (targetPage - 1) * pageWidth;
             
-            readerContent.scrollTo({
-                left: targetOffset,
-                behavior: 'smooth'
-            });
+            // Use immediate scrolling instead of smooth
+            readerContent.scrollLeft = targetOffset;
 
             currentPage = targetPage;
             updatePageDisplay();
@@ -1205,11 +1203,8 @@ function goToPage(pageNum) {
         container.innerHTML = `<div class="chapter-content" style="padding: 2rem;">${content}</div>`;
     }
 
-    // Smooth scroll to target page
-    container.scrollTo({
-        left: targetOffset,
-        behavior: 'smooth'
-    });
+    // Immediate scroll to target page
+    container.scrollLeft = targetOffset;
 
     currentPage = pageNum;
     updatePageDisplay();
