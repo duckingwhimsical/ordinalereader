@@ -891,19 +891,6 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
                 margin-top: 1.5em;
                 margin-bottom: 0.5em;
             }
-
-            /* Essential image handling */
-            .chapter-content img:not([style*="width"]) {
-                max-width: 100%;
-                height: auto;
-            }
-            .chapter-content img:not([style*="height"]) {
-                max-height: 85vh;
-            }
-            .chapter-content img:not([style*="display"]) {
-                display: block;
-                margin: 1px auto;
-            }
         `;
 
         // Process images
