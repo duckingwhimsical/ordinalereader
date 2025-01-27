@@ -228,52 +228,111 @@
     <style>
         @keyframes pageTurnBackward {
           0% {
-            transform: perspective(2000px) rotateY(-180deg) scaleY(1.2);
-            transform-origin: left center;
+            transform: perspective(2000px) rotateY(-180deg);
+            z-index: 10;
           }
-            50% {
-                transform: perspective(2000px) rotateY(-90deg) scaleY(1);
-                transform-origin: left center;
-            }
+          50% {
+            transform: perspective(2000px) rotateY(-90deg);
+            z-index: 10;
+          }
+          50.1% {
+            transform: perspective(2000px) rotateY(-90deg);
+            z-index: 0;
+          }
           100% {
-            transform: perspective(2000px) rotateY(0deg) scaleY(1);
-            transform-origin: left center;
+            transform: perspective(2000px) rotateY(0deg);
+            z-index: 0;
           }
         }
       
         @keyframes pageTurnForward {
           0% {
-            transform: perspective(2000px) rotateY(0deg) scaleY(1);
-            transform-origin: left center;
+            transform: perspective(2000px) rotateY(0deg);
+            z-index: 0;
           }
-            50% {
-                transform: perspective(2000px) rotateY(-90deg) scaleY(1);
-                transform-origin: left center;
-            }
+          50% {
+            transform: perspective(2000px) rotateY(-90deg);
+            z-index: 0;
+          }
+          50.1% {
+            transform: perspective(2000px) rotateY(-90deg);
+            z-index: 10;
+          }
           100% {
-            transform: perspective(2000px) rotateY(-180deg) scaleY(1.2);
-            transform-origin: left center;
+            transform: perspective(2000px) rotateY(-180deg);
+            z-index: 10;
           }
+        }
+      
+        :root {
+            --page-turn-duration: 1s;
         }
       
         .turn-forward {
-          animation: pageTurnForward 0.3s ease-in-out forwards;
-          transform-origin: left center; /* just to be sure */
-        }
-        .turn-backward {
-          animation: pageTurnBackward 0.3s ease-in-out forwards;
+          animation: pageTurnForward var(--page-turn-duration) ease-in-out forwards;
           transform-origin: left center;
-        }
-      
-        .page-face {
-          position: absolute;
-          inset: 0;
           backface-visibility: hidden;
         }
-        .page-face-back {
-          transform: rotateY(180deg);
+
+        .turn-backward {
+          animation: pageTurnBackward var(--page-turn-duration) ease-in-out forwards;
+          transform-origin: left center;
+          backface-visibility: hidden;
         }
-      </style>
+
+        .perspective-2000 {
+            perspective: 2000px;
+            transform-style: preserve-3d;
+        }
+
+        #reader-content, #reader-content-alt {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+            column-fill: auto;
+            overflow: hidden;
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            transform-origin: left center;
+            background: inherit;
+        }
+
+        /* Initially hide the alt reader */
+        #reader-content-alt {
+            display: none;
+        }
+
+        /* Theme colors for both readers */
+        .light #reader-content, .light #reader-content-alt,
+        .light #reader-content .chapter-content, .light #reader-content-alt .chapter-content {
+            background-color: #ffffff;
+            color: #1a1a1a;
+        }
+        
+        .dark #reader-content, .dark #reader-content-alt,
+        .dark #reader-content .chapter-content, .dark #reader-content-alt .chapter-content {
+            background-color: #1a1a1a;
+            color: #e2e8f0;
+        }
+        
+        .sepia #reader-content, .sepia #reader-content-alt,
+        .sepia #reader-content .chapter-content, .sepia #reader-content-alt .chapter-content {
+            background-color: #faf6f0;
+            color: #574532;
+        }
+
+        /* Ensure chapter content has same styles in both readers */
+        #reader-content .chapter-content,
+        #reader-content-alt .chapter-content {
+            padding: 2rem;
+            height: 100%;
+            column-fill: auto;
+            box-sizing: border-box;
+        }
+    </style>
       
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 sepia:from-sepia-50 sepia:to-sepia-100 h-screen overflow-hidden transition-colors duration-300">
@@ -368,7 +427,7 @@
         </header>
 
         <!-- Reader Container -->
-        <div class="flex-1 min-h-0 bg-white dark:bg-gray-900 sepia:bg-sepia-50">
+        <div class="flex-1 min-h-0 bg-white dark:bg-gray-900 sepia:bg-sepia-50 relative">
             <!-- Navigation Buttons -->
             <div class="absolute inset-y-0 left-0 flex items-center w-1/4 group z-20">
                 <button id="prevPage" class="w-full h-full flex items-center justify-start pl-4 opacity-0 hover:opacity-100">
@@ -385,9 +444,17 @@
                 </button>
             </div>
 
-            <!-- Reader Content -->
-            <div id="reader-content" class="h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
-                <!-- Content will be inserted here -->
+            <!-- Reader Content Container -->
+            <div class="relative w-full h-full perspective-2000">
+                <!-- Primary Reader -->
+                <div id="reader-content" class="absolute inset-0 h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
+                    <!-- Content will be inserted here -->
+                </div>
+
+                <!-- Secondary Reader -->
+                <div id="reader-content-alt" class="absolute inset-0 h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
+                    <!-- Content will be inserted here during transitions -->
+                </div>
             </div>
         </div>
 

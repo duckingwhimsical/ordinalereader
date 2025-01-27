@@ -36,6 +36,12 @@ let pagesPerChapter = new Map();
 let bookmarks = [];
 let searchWorker = null;
 
+// Add animation timing constant
+const PAGE_TURN_DURATION = 1000; // Duration in milliseconds
+
+// Track which reader is currently active
+let activeReader = 'main'; // 'main' or 'alt'
+
 // Theme handling with transitions
 function setTheme(theme) {
     const html = document.documentElement;
@@ -54,10 +60,16 @@ function setTheme(theme) {
     html.classList.remove('light', 'dark', 'sepia');
     html.classList.add(theme);
 
-    const content = document.getElementById('reader-content');
-    if (content) {
-        content.style.color = themes[theme].body.color;
-        content.style.backgroundColor = themes[theme].body.background;
+    const mainContent = document.getElementById('reader-content');
+    const altContent = document.getElementById('reader-content-alt');
+    
+    if (mainContent) {
+        mainContent.style.color = themes[theme].body.color;
+        mainContent.style.backgroundColor = themes[theme].body.background;
+    }
+    if (altContent) {
+        altContent.style.color = themes[theme].body.color;
+        altContent.style.backgroundColor = themes[theme].body.background;
     }
 
     storage.setItem('epub-theme', theme);
@@ -468,7 +480,7 @@ async function handleSearch() {
             element.addEventListener('click', () => {
                 const chapter = parseInt(element.dataset.chapter);
                 const page = parseInt(element.dataset.page);
-                displayChapter(chapter, page);
+                displayPage(chapter, page);
                 toggleSearch();
             });
         });
@@ -560,7 +572,7 @@ function displayBookmarks() {
             ${bookmark.preview ? `<div class="text-xs text-gray-600 dark:text-gray-400 mt-1">${bookmark.preview}</div>` : ''}
         `;
         textDiv.onclick = () => {
-            displayChapter(bookmark.chapter, bookmark.page);
+            displayPage(bookmark.chapter, bookmark.page);
             toggleSidebar();
         };
 
@@ -819,145 +831,190 @@ async function loadEpubFile() {
     }
 }
 
-// Update displayChapter function to handle page navigation
-async function displayChapter(index, targetPage = 1, isForward = true) {
+// Update animatePageTurn function
+async function animatePageTurn(isForward = true, newContent = null) {
+    const mainReader = document.getElementById('reader-content');
+    const altReader = document.getElementById('reader-content-alt');
+    
+    // Determine which reader is turning and which is receiving
+    const turningReader = activeReader === 'main' ? mainReader : altReader;
+    const receivingReader = activeReader === 'main' ? altReader : mainReader;
+    
+    // Make receiving reader match the turning reader exactly
+    receivingReader.style.cssText = turningReader.style.cssText;
+    
+    // Make sure both readers are visible
+    turningReader.style.display = 'block';
+    receivingReader.style.display = 'block';
+    
+    // Start animation
+    turningReader.classList.add(isForward ? 'turn-forward' : 'turn-backward');
+    
+    /*
+    if (!isForward) {
+        // For backward transitions, wait until near the end to update main content
+        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION * 0.8));
+        if (newContent) {
+            const mainReader = document.getElementById('reader-content');
+            mainReader.innerHTML = newContent;
+        }
+        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION * 0.2));
+    } else {
+        // For forward transitions, wait the full duration
+        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION));
+    }*/
+    
+    await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION));
+    
+    // Clean up
+    turningReader.classList.remove('turn-forward', 'turn-backward');
+    turningReader.style.display = 'none';
+    
+    // Switch active reader
+    activeReader = activeReader === 'main' ? 'alt' : 'main';
+}
+
+async function preparePageTurn(content, isForward = true, targetOffset = 0) {
+    const mainReader = document.getElementById('reader-content');
+    const altReader = document.getElementById('reader-content-alt');
+    
+    // Determine which reader will receive the new content
+    const receivingReader = activeReader === 'main' ? altReader : mainReader;
+    const turningReader = activeReader === 'main' ? mainReader : altReader;
+    
+    // Copy all styles from the turning reader
+    receivingReader.style.cssText = turningReader.style.cssText;
+    
+    if (isForward) {
+        // For forward transitions, update receiving reader immediately
+        receivingReader.innerHTML = content;
+        receivingReader.scrollLeft = targetOffset;
+    } else {
+        // For backward transitions, update alt reader with new content
+        altReader.innerHTML = content;
+        altReader.scrollLeft = targetOffset;
+    }
+    
+    // Hide the receiving reader until animation starts
+    receivingReader.style.display = 'none';
+    
+    // Pass the content to animatePageTurn for backward transitions
+    await animatePageTurn(isForward, isForward ? null : content);
+}
+
+// Remove goToPage function and update displayChapter to handle both cases
+async function displayPage(chapterIndex = currentChapter, pageNum = 1, isForward = true) {
     try {
-        currentChapter = index;
-        const chapter = currentBook.chapters[index];
-        let content = chapter.content;
+        const mainReader = document.getElementById('reader-content');
+        const altReader = document.getElementById('reader-content-alt');
+        const oldContent = mainReader.innerHTML;
+        
+        // Check if we're just moving pages within the same chapter
+        const isSameChapter = chapterIndex === currentChapter;
+        const isFirstLoad = mainReader.innerHTML === '';
+        
+        // Get the chapter content
+        const chapter = currentBook.chapters[chapterIndex];
+        let newContent = chapter.content;
 
-        // Create a style element for all CSS
-        let combinedStyles = '';
+        // Process images for new chapters or first load
+        //if (!isSameChapter || isFirstLoad) {
+        {
+            // Process images for the new content
+            newContent = newContent.replace(
+                /<img[^>]+src="([^"]+)"[^>]*>/g,
+                (match, src) => {
+                    const imagePath = resolveEpubPath(src, currentBook.basePath);
+                    return currentBook.images[imagePath]
+                        ? match.replace(src, currentBook.images[imagePath])
+                        : match;
+                }
+            );
 
-        // Add CSS custom properties first
-        combinedStyles += '\n:root {\n';
-        currentBook.customProperties.forEach((value, key) => {
-            combinedStyles += `    ${key}: ${value};\n`;
-        });
-        combinedStyles += '}\n';
+            // Create a style element for all CSS
+            let combinedStyles = '';
 
-        // Add all processed stylesheet contents from the ebook with higher specificity
-        const linkedStyles = chapter.linkedStyles;
-        for (const cssPath of linkedStyles) {
-            if (currentBook.styles[cssPath]) {
-                // Wrap ebook styles in a higher specificity selector
-                combinedStyles += `#reader-content .chapter-content {\n${currentBook.styles[cssPath]}\n}\n`;
+            // Add CSS custom properties first
+            combinedStyles += '\n:root {\n';
+            currentBook.customProperties.forEach((value, key) => {
+                combinedStyles += `    ${key}: ${value};\n`;
+            });
+            combinedStyles += '}\n';
+
+            // Add all processed stylesheet contents from the ebook with higher specificity
+            const linkedStyles = chapter.linkedStyles;
+            for (const cssPath of linkedStyles) {
+                if (currentBook.styles[cssPath]) {
+                    combinedStyles += `#reader-content .chapter-content, #reader-content-alt .chapter-content {\n${currentBook.styles[cssPath]}\n}\n`;
+                }
             }
-        }
 
-        // Add chapter's internal styles with higher specificity
-        if (chapter.internalStyles) {
-            combinedStyles += `#reader-content .chapter-content {\n${chapter.internalStyles}\n}\n`;
-        }
-
-        // Add essential reader layout styles
-        combinedStyles += `
-            /* Reader layout styles */
-            .chapter-content {
-                padding: 2rem;
-                column-fill: auto;
-                height: 100%;
+            // Add chapter's internal styles with higher specificity
+            if (chapter.internalStyles) {
+                combinedStyles += `#reader-content .chapter-content, #reader-content-alt .chapter-content {\n${chapter.internalStyles}\n}\n`;
             }
-            
-            /* Basic column break handling */
-            .chapter-content h1, 
-            .chapter-content h2, 
-            .chapter-content h3, 
-            .chapter-content h4, 
-            .chapter-content h5, 
-            .chapter-content h6, 
-            .chapter-content img, 
-            .chapter-content table, 
-            .chapter-content pre {
-                break-inside: avoid;
-                break-before: auto;
-                break-after: auto;
-            }
-            
-            /* Default spacing only if not specified by ebook */
-            .chapter-content p:not([style*="margin"]) {
-                margin: 1px 0;
-                orphans: 2;
-                widows: 2;
-            }
-            
-            /* Default heading margins only if not specified by ebook */
-            .chapter-content h1:not([style*="margin"]),
-            .chapter-content h2:not([style*="margin"]),
-            .chapter-content h3:not([style*="margin"]),
-            .chapter-content h4:not([style*="margin"]),
-            .chapter-content h5:not([style*="margin"]),
-            .chapter-content h6:not([style*="margin"]) {
-                margin-top: 1.5em;
-                margin-bottom: 0.5em;
-            }
-        `;
 
-        // Process images
-        content = content.replace(
-            /<img[^>]+src="([^"]+)"[^>]*>/g,
-            (match, src) => {
-                const imagePath = resolveEpubPath(src, currentBook.basePath);
-                return currentBook.images[imagePath]
-                    ? match.replace(src, currentBook.images[imagePath])
-                    : match;
-            }
-        );
+            // Remove any existing EPUB styles
+            const existingStyles = document.querySelectorAll('style[data-epub-styles]');
+            existingStyles.forEach(style => style.remove());
 
-        // Remove any existing EPUB styles
-        const existingStyles = document.querySelectorAll('style[data-epub-styles]');
-        existingStyles.forEach(style => style.remove());
+            // Create and append new style element
+            const styleElement = document.createElement('style');
+            styleElement.setAttribute('data-epub-styles', 'true');
+            styleElement.textContent = combinedStyles;
+            document.head.appendChild(styleElement);
 
-        // Create and append new style element
-        const styleElement = document.createElement('style');
-        styleElement.setAttribute('data-epub-styles', 'true');
-        styleElement.textContent = combinedStyles;
-        document.head.appendChild(styleElement);
-
-        // Update the content container styles
-        const readerContent = document.getElementById('reader-content');
-        if (readerContent) {
-            // Calculate initial dimensions
-            const { columnWidth, columnGap } = getPageDimensions(readerContent);
-            
-            // Apply only essential layout styles
-            Object.assign(readerContent.style, {
-                fontSize: `${currentFontSize}px`,
-                columnWidth: columnWidth + 'px',
-                columnGap: columnGap + 'px',
-                columnFill: 'auto',
-                height: '100%',
-                overflow: 'hidden',
-                padding: '0',
-                margin: '0'
+            // Update both readers with the same styles
+            [mainReader, altReader].forEach(reader => {
+                if (reader) {
+                    // Calculate initial dimensions
+                    const { columnWidth, columnGap } = getPageDimensions(reader);
+                    
+                    // Apply only essential layout styles
+                    Object.assign(reader.style, {
+                        fontSize: `${currentFontSize}px`,
+                        columnWidth: columnWidth + 'px',
+                        columnGap: columnGap + 'px',
+                        columnFill: 'auto',
+                        height: '100%',
+                        overflow: 'hidden',
+                        padding: '0',
+                        margin: '0'
+                    });
+                }
             });
 
             // Wait for fonts to load
             await document.fonts.ready;
-
-            // Wrap content in a container div
-            const wrappedContent = `<div class="chapter-content">${content}</div>`;
-            
-            // Set content and scroll to target page
-            readerContent.innerHTML = wrappedContent;
-            
-            // Get final dimensions after content is loaded
-            const { pageWidth } = getPageDimensions(readerContent);
-            const targetOffset = (targetPage - 1) * pageWidth;
-            
-            // Use immediate scrolling instead of smooth
-            readerContent.scrollLeft = targetOffset;
-
-            currentPage = targetPage;
-            updatePageDisplay();
-            updateBookmarkState();
         }
 
+        // Wrap content in a container div
+        const wrappedContent = `<div class="chapter-content">${newContent}</div>`;
+
+        // Calculate target offset
+        const { pageWidth } = getPageDimensions(mainReader);
+        const targetOffset = (pageNum - 1) * pageWidth;
+
+        // Skip animation on first load
+        if (isFirstLoad) {
+            mainReader.innerHTML = wrappedContent;
+            mainReader.scrollLeft = targetOffset;
+        } else {
+            // Perform the page turn animation
+            await preparePageTurn(wrappedContent, isForward, targetOffset);
+        }
+
+        // Update current chapter and page after animation
+        currentChapter = chapterIndex;
+        currentPage = pageNum;
+        updatePageDisplay();
+        updateBookmarkState();
+
     } catch (error) {
-        console.error('Error displaying chapter:', error);
+        console.error('Error displaying page:', error);
         const readerContent = document.getElementById('reader-content');
         if (readerContent) {
-            readerContent.innerHTML = '<div class="p-4 text-red-600">Error displaying chapter. Please try again.</div>';
+            readerContent.innerHTML = '<div class="p-4 text-red-600">Error displaying page. Please try again.</div>';
         }
     }
 }
@@ -996,7 +1053,7 @@ function displayNavigation() {
         button.className = 'w-full text-left px-4 py-2 textgray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200';
         button.textContent = title;
         button.onclick = () => {
-            displayChapter(index);
+            displayPage(index);
             toggleSidebar();
         };
         nav.appendChild(button);
@@ -1051,7 +1108,7 @@ function setupControls() {
         }
 
         // Redisplay the current chapter at the same page number if possible
-        displayChapter(currentChapter, currentPage);
+        displayPage(currentChapter, currentPage);
     };
 
     // Navigation
@@ -1178,54 +1235,22 @@ function getPageDimensions(container) {
     return { columnWidth, columnGap, pageWidth: columnWidth + columnGap };
 }
 
-function goToPage(pageNum) {
-    const container = document.getElementById('reader-content');
-    const content = currentBook.chapters[currentChapter].content;
-
-    // Get actual dimensions from the DOM
-    const { columnWidth, columnGap, pageWidth } = getPageDimensions(container);
-
-    // Calculate the offset for the target page
-    const targetOffset = (pageNum - 1) * pageWidth;
-
-    // Apply column-based layout to container
-    Object.assign(container.style, {
-        columnWidth: columnWidth + 'px',
-        columnGap: columnGap + 'px',
-        columnFill: 'auto',
-        height: '100%',
-        overflow: 'hidden',
-        padding: '0'  // Remove padding from container
-    });
-
-    // Set content if not already set
-    if (!container.firstChild || container.firstChild.nodeType !== Node.ELEMENT_NODE) {
-        container.innerHTML = `<div class="chapter-content" style="padding: 2rem;">${content}</div>`;
-    }
-
-    // Immediate scroll to target page
-    container.scrollLeft = targetOffset;
-
-    currentPage = pageNum;
-    updatePageDisplay();
-    updateBookmarkState();
-}
-
+// Update nextPage and prevPage to use the new function
 function nextPage() {
     const chapterPages = pagesPerChapter.get(currentChapter) || 1;
     if (currentPage < chapterPages) {
-        goToPage(currentPage + 1);
+        displayPage(currentChapter, currentPage + 1, true);
     } else if (currentChapter < currentBook.chapters.length - 1) {
-        displayChapter(currentChapter + 1, 1);
+        displayPage(currentChapter + 1, 1, true);
     }
 }
 
 function prevPage() {
     if (currentPage > 1) {
-        goToPage(currentPage - 1);
+        displayPage(currentChapter, currentPage - 1, false);
     } else if (currentChapter > 0) {
         const prevChapterPages = pagesPerChapter.get(currentChapter - 1) || 1;
-        displayChapter(currentChapter - 1, prevChapterPages, false);
+        displayPage(currentChapter - 1, prevChapterPages, false);
     }
 }
 
@@ -1310,10 +1335,9 @@ async function loadTotalPages() {
 }
 
 async function displayBook() {
-
     // Display the book
     document.getElementById('reader-content').parentElement.classList.remove('hidden');
-    displayChapter(0);
+    displayPage(0, 1, true);
     displayNavigation();
     loadBookmarks();
 }
