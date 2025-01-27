@@ -35,12 +35,11 @@ let totalPages = 0;
 let pagesPerChapter = new Map();
 let bookmarks = [];
 let searchWorker = null;
+let isSameChapter = false;
+let isFirstLoad = true;
 
 // Add animation timing constant
 const PAGE_TURN_DURATION = 1000; // Duration in milliseconds
-
-// Track which reader is currently active
-let activeReader = 'main'; // 'main' or 'alt'
 
 // Theme handling with transitions
 function setTheme(theme) {
@@ -61,7 +60,7 @@ function setTheme(theme) {
     html.classList.add(theme);
 
     const mainContent = document.getElementById('reader-content');
-    const altContent = document.getElementById('reader-content-alt');
+    const altContent = document.getElementById('reader-pageTurner');
     
     if (mainContent) {
         mainContent.style.color = themes[theme].body.color;
@@ -831,95 +830,59 @@ async function loadEpubFile() {
     }
 }
 
-// Update animatePageTurn function
-async function animatePageTurn(isForward = true, newContent = null) {
+async function doPageTurn(content, isForward = true, targetOffset = 0) {
     const mainReader = document.getElementById('reader-content');
-    const altReader = document.getElementById('reader-content-alt');
+    const pageTurnReader = document.getElementById('reader-pageTurner');
     
-    // Determine which reader is turning and which is receiving
-    const turningReader = activeReader === 'main' ? mainReader : altReader;
-    const receivingReader = activeReader === 'main' ? altReader : mainReader;
+    //pageTurnReader.style.cssText = mainReader.style.cssText;
+    if (isForward) {
+        // For forward transitions, update with current content
+        pageTurnReader.innerHTML = mainReader.innerHTML;
+        pageTurnReader.scrollLeft = mainReader.scrollLeft;
+    } else {
+        // For backward transitions, update alt reader with new content
+        pageTurnReader.innerHTML = content;
+        pageTurnReader.scrollLeft = targetOffset;
+    }
     
-    // Make receiving reader match the turning reader exactly
-    receivingReader.style.cssText = turningReader.style.cssText;
-    
-    // Make sure both readers are visible
-    turningReader.style.display = 'block';
-    receivingReader.style.display = 'block';
+    //show alt reader
+    pageTurnReader.style.display = 'block';
+
+    if (isForward) {
+        mainReader.innerHTML = content;
+        mainReader.scrollLeft = targetOffset;
+    }
     
     // Start animation
-    turningReader.classList.add(isForward ? 'turn-forward' : 'turn-backward');
-    
-    /*
-    if (!isForward) {
-        // For backward transitions, wait until near the end to update main content
-        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION * 0.8));
-        if (newContent) {
-            const mainReader = document.getElementById('reader-content');
-            mainReader.innerHTML = newContent;
-        }
-        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION * 0.2));
-    } else {
-        // For forward transitions, wait the full duration
-        await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION));
-    }*/
+    pageTurnReader.classList.add(isForward ? 'turn-forward' : 'turn-backward');
     
     await new Promise(resolve => setTimeout(resolve, PAGE_TURN_DURATION));
     
-    // Clean up
-    turningReader.classList.remove('turn-forward', 'turn-backward');
-    turningReader.style.display = 'none';
-    
-    // Switch active reader
-    activeReader = activeReader === 'main' ? 'alt' : 'main';
-}
-
-async function preparePageTurn(content, isForward = true, targetOffset = 0) {
-    const mainReader = document.getElementById('reader-content');
-    const altReader = document.getElementById('reader-content-alt');
-    
-    // Determine which reader will receive the new content
-    const receivingReader = activeReader === 'main' ? altReader : mainReader;
-    const turningReader = activeReader === 'main' ? mainReader : altReader;
-    
-    // Copy all styles from the turning reader
-    receivingReader.style.cssText = turningReader.style.cssText;
-    
-    if (isForward) {
-        // For forward transitions, update receiving reader immediately
-        receivingReader.innerHTML = content;
-        receivingReader.scrollLeft = targetOffset;
-    } else {
-        // For backward transitions, update alt reader with new content
-        altReader.innerHTML = content;
-        altReader.scrollLeft = targetOffset;
+    if (!isForward) {
+        mainReader.innerHTML = content;
+        mainReader.scrollLeft = targetOffset;
     }
-    
-    // Hide the receiving reader until animation starts
-    receivingReader.style.display = 'none';
-    
-    // Pass the content to animatePageTurn for backward transitions
-    await animatePageTurn(isForward, isForward ? null : content);
+
+    // Clean up
+    pageTurnReader.classList.remove('turn-forward', 'turn-backward');
+    pageTurnReader.style.display = 'none';
 }
 
-// Remove goToPage function and update displayChapter to handle both cases
+// Update the displayPage function to handle these variables
 async function displayPage(chapterIndex = currentChapter, pageNum = 1, isForward = true) {
     try {
         const mainReader = document.getElementById('reader-content');
-        const altReader = document.getElementById('reader-content-alt');
-        const oldContent = mainReader.innerHTML;
+        const pageTurnReader = document.getElementById('reader-pageTurner');
         
-        // Check if we're just moving pages within the same chapter
-        const isSameChapter = chapterIndex === currentChapter;
-        const isFirstLoad = mainReader.innerHTML === '';
+        // Update isSameChapter check
+        isSameChapter = chapterIndex === currentChapter;
         
         // Get the chapter content
         const chapter = currentBook.chapters[chapterIndex];
         let newContent = chapter.content;
 
         // Process images for new chapters or first load
-        //if (!isSameChapter || isFirstLoad) {
-        {
+        if (!isSameChapter || isFirstLoad) {
             // Process images for the new content
             newContent = newContent.replace(
                 /<img[^>]+src="([^"]+)"[^>]*>/g,
@@ -945,13 +908,13 @@ async function displayPage(chapterIndex = currentChapter, pageNum = 1, isForward
             const linkedStyles = chapter.linkedStyles;
             for (const cssPath of linkedStyles) {
                 if (currentBook.styles[cssPath]) {
-                    combinedStyles += `#reader-content .chapter-content, #reader-content-alt .chapter-content {\n${currentBook.styles[cssPath]}\n}\n`;
+                    combinedStyles += `#reader-content .chapter-content, #reader-pageTurner .chapter-content {\n${currentBook.styles[cssPath]}\n}\n`;
                 }
             }
 
             // Add chapter's internal styles with higher specificity
             if (chapter.internalStyles) {
-                combinedStyles += `#reader-content .chapter-content, #reader-content-alt .chapter-content {\n${chapter.internalStyles}\n}\n`;
+                combinedStyles += `#reader-content .chapter-content, #reader-pageTurner .chapter-content {\n${chapter.internalStyles}\n}\n`;
             }
 
             // Remove any existing EPUB styles
@@ -964,28 +927,25 @@ async function displayPage(chapterIndex = currentChapter, pageNum = 1, isForward
             styleElement.textContent = combinedStyles;
             document.head.appendChild(styleElement);
 
-            // Update both readers with the same styles
-            [mainReader, altReader].forEach(reader => {
-                if (reader) {
-                    // Calculate initial dimensions
-                    const { columnWidth, columnGap } = getPageDimensions(reader);
-                    
-                    // Apply only essential layout styles
-                    Object.assign(reader.style, {
-                        fontSize: `${currentFontSize}px`,
-                        columnWidth: columnWidth + 'px',
-                        columnGap: columnGap + 'px',
-                        columnFill: 'auto',
-                        height: '100%',
-                        overflow: 'hidden',
-                        padding: '0',
-                        margin: '0'
-                    });
-                }
-            });
-
             // Wait for fonts to load
             await document.fonts.ready;
+
+            // Calculate initial dimensions
+            const { columnWidth, columnGap } = getPageDimensions(mainReader);
+
+            [mainReader, pageTurnReader].forEach(reader => {
+                // Apply only essential layout styles
+                Object.assign(mainReader.style, {
+                    fontSize: `${currentFontSize}px`,
+                    columnWidth: columnWidth + 'px',
+                    columnGap: columnGap + 'px',
+                    columnFill: 'auto',
+                    height: '100%',
+                    overflow: 'hidden',
+                    padding: '0',
+                    margin: '0'
+                });
+            });
         }
 
         // Wrap content in a container div
@@ -995,20 +955,16 @@ async function displayPage(chapterIndex = currentChapter, pageNum = 1, isForward
         const { pageWidth } = getPageDimensions(mainReader);
         const targetOffset = (pageNum - 1) * pageWidth;
 
-        // Skip animation on first load
-        if (isFirstLoad) {
-            mainReader.innerHTML = wrappedContent;
-            mainReader.scrollLeft = targetOffset;
-        } else {
-            // Perform the page turn animation
-            await preparePageTurn(wrappedContent, isForward, targetOffset);
-        }
+        await doPageTurn(wrappedContent, isForward, targetOffset);
 
         // Update current chapter and page after animation
         currentChapter = chapterIndex;
         currentPage = pageNum;
         updatePageDisplay();
         updateBookmarkState();
+
+        // After successful page display, set isFirstLoad to false
+        isFirstLoad = false;
 
     } catch (error) {
         console.error('Error displaying page:', error);
@@ -1235,7 +1191,6 @@ function getPageDimensions(container) {
     return { columnWidth, columnGap, pageWidth: columnWidth + columnGap };
 }
 
-// Update nextPage and prevPage to use the new function
 function nextPage() {
     const chapterPages = pagesPerChapter.get(currentChapter) || 1;
     if (currentPage < chapterPages) {

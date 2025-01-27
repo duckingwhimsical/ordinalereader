@@ -285,7 +285,7 @@
             transform-style: preserve-3d;
         }
 
-        #reader-content, #reader-content-alt {
+        #reader-content, #reader-pageTurner {
             width: 100%;
             height: 100%;
             box-sizing: border-box;
@@ -301,32 +301,32 @@
         }
 
         /* Initially hide the alt reader */
-        #reader-content-alt {
+        #reader-pageTurner {
             display: none;
         }
 
         /* Theme colors for both readers */
-        .light #reader-content, .light #reader-content-alt,
-        .light #reader-content .chapter-content, .light #reader-content-alt .chapter-content {
+        .light #reader-content, .light #reader-pageTurner,
+        .light #reader-content .chapter-content, .light #reader-pageTurner .chapter-content {
             background-color: #ffffff;
             color: #1a1a1a;
         }
         
-        .dark #reader-content, .dark #reader-content-alt,
-        .dark #reader-content .chapter-content, .dark #reader-content-alt .chapter-content {
+        .dark #reader-content, .dark #reader-pageTurner,
+        .dark #reader-content .chapter-content, .dark #reader-pageTurner .chapter-content {
             background-color: #1a1a1a;
             color: #e2e8f0;
         }
         
-        .sepia #reader-content, .sepia #reader-content-alt,
-        .sepia #reader-content .chapter-content, .sepia #reader-content-alt .chapter-content {
+        .sepia #reader-content, .sepia #reader-pageTurner,
+        .sepia #reader-content .chapter-content, .sepia #reader-pageTurner .chapter-content {
             background-color: #faf6f0;
             color: #574532;
         }
 
         /* Ensure chapter content has same styles in both readers */
         #reader-content .chapter-content,
-        #reader-content-alt .chapter-content {
+        #reader-pageTurner .chapter-content {
             padding: 2rem;
             height: 100%;
             column-fill: auto;
@@ -452,7 +452,7 @@
                 </div>
 
                 <!-- Secondary Reader -->
-                <div id="reader-content-alt" class="absolute inset-0 h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
+                <div id="reader-pageTurner" class="absolute inset-0 h-full overflow-x-scroll overflow-y-hidden px-4 sm:px-8 md:px-12 lg:px-18">
                     <!-- Content will be inserted here during transitions -->
                 </div>
             </div>
