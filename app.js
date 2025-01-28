@@ -125,18 +125,15 @@ function resolveEpubPath(relativePath, basePath) {
 // Enhanced CSS processor for better URL handling and embedding
 const cssProcessor = {
     processImports: async function(css, zip, basePath) {
-        console.log('Processing CSS imports from basePath:', basePath);
         const processedImports = await Promise.all(
             Array.from(css.matchAll(/@import\s+(?:url\(['"]?([^'"()]+)['"]?\)|['"]([^'"]+)['"]);/g))
                 .map(async ([match, urlPath, plainPath]) => {
                     const importPath = urlPath || plainPath;
                     const fullPath = resolveEpubPath(importPath, basePath);
-                    console.log(`Resolving CSS import: ${importPath} -> ${fullPath}`);
 
                     try {
                         const importedFile = zip.file(fullPath);
                         if (!importedFile) {
-                            console.warn(`Import not found: ${fullPath}, trying alternative paths...`);
                             // Try alternative paths
                             const altPaths = [
                                 `EPUB/styles/${importPath}`,
@@ -148,7 +145,6 @@ const cssProcessor = {
                             for (const altPath of altPaths) {
                                 const altFile = zip.file(altPath);
                                 if (altFile) {
-                                    console.log(`Found CSS at alternative path: ${altPath}`);
                                     const importedCss = await altFile.async("text");
                                     const processedCss = await this.processImports(importedCss, zip, basePath);
                                     return await this.processUrls(processedCss, zip, basePath);
@@ -161,7 +157,7 @@ const cssProcessor = {
                         const processedCss = await this.processImports(importedCss, zip, basePath);
                         return await this.processUrls(processedCss, zip, basePath);
                     } catch (e) {
-                        console.warn(`Failed to process @import for ${importPath}:`, e);
+                        console.warn(`Failed to process @import for ${importPath}`);
                         return '';
                     }
                 })
@@ -179,31 +175,25 @@ const cssProcessor = {
     },
 
     processUrls: async function(css, zip, basePath) {
-        console.log('Processing CSS URLs...');
         // Match url() patterns in CSS
         const urlRegex = /url\(['"]?([^'"()]+)['"]?\)/g;
         const matches = Array.from(css.matchAll(urlRegex));
 
         for (const [fullMatch, url] of matches) {
-            if (url.startsWith('data:')) continue; // Skip already embedded resources
+            if (url.startsWith('data:')) continue;
 
             try {
-                // Resolve the full path relative to basePath
                 const fullPath = resolveEpubPath(url, basePath);
-                console.log(`Resolving resource path: ${fullPath}`);
                 const file = zip.file(fullPath);
 
                 if (file) {
-                    console.log(`Processing resource: ${fullPath}`);
                     const data = await file.async('base64');
                     const mimeType = this.getMimeType(fullPath);
                     const dataUrl = `data:${mimeType};base64,${data}`;
                     css = css.replace(fullMatch, `url('${dataUrl}')`);
-                } else {
-                    console.warn(`Resource not found: ${fullPath}`);
                 }
             } catch (e) {
-                console.warn(`Failed to process URL ${url}:`, e);
+                console.warn(`Failed to process URL ${url}`);
             }
         }
         return css;
@@ -324,10 +314,7 @@ function getFontFamilyInfo(filename) {
 
 async function processFontFile(zip, font, basePath) {
     try {
-        console.log(`Processing font file: ${font.href}`);
         let fontFile;
-
-        // Try multiple possible paths
         const possiblePaths = [
             font.href,
             resolveEpubPath(font.href, basePath),
@@ -336,45 +323,27 @@ async function processFontFile(zip, font, basePath) {
 
         for (const path of possiblePaths) {
             fontFile = zip.file(path);
-            if (fontFile) {
-                console.log(`Found font at path: '${path}'`);
-                break;
-            }
+            if (fontFile) break;
         }
 
         if (!fontFile) {
-            console.warn(`Could not find font file for ${font.href}`);
+            console.warn(`Font file not found: ${font.href}`);
             return null;
         }
 
-        // Get the font data as an ArrayBuffer instead of Uint8Array
         const fontData = await fontFile.async("arraybuffer");
-
-        // Parse the font using opentype.js
         const loadedFont = opentype.parse(fontData);
-
-        // Use the font name from the loaded font
         const fontName = loadedFont.names.fontFamily.en || loadedFont.names.fontFamily.default || 'Unknown Font';
-
         const format = getFontFormat(font.href);
         const mimeType = getMimeType(format);
-
-        // Get font information from filename
         const fontInfo = getFontFamilyInfo(font.href.split('/').pop());
-        console.log(`Extracted font info:`, fontInfo);
-
         const fontKey = `${fontName}-${fontInfo.weight}-${fontInfo.style}`.toLowerCase().replace(/\s+/g, '-');
 
-        // Log the generated font key
-        console.log(`Generated font key: '${fontKey}'`);
-
-        // Use FontFace to load the font
         const fontFace = new FontFace(fontName, fontData, {
             weight: fontInfo.weight,
             style: fontInfo.style,
         });
 
-        // Add the font to the document
         await fontFace.load();
         document.fonts.add(fontFace);
 
@@ -1233,11 +1202,8 @@ function init() {
 init();
 
 async function loadTotalPages() {
-    // Pre-calculate pages for all chapters
     updateLoadingProgress(1, 'Calculating chapter layout...');
-    console.log('Starting page calculations...');
 
-    // Create a temporary div for page calculations
     const tempDiv = document.createElement('div');
     const readerContent = document.getElementById('reader-content');
     tempDiv.style.cssText = window.getComputedStyle(readerContent).cssText;
@@ -1251,41 +1217,26 @@ async function loadTotalPages() {
     tempDiv.style.overflow = 'hidden';
     document.body.appendChild(tempDiv);
 
-    // Reset counters
     totalPages = 0;
     pagesPerChapter.clear();
 
-    // Process each chapter sequentially
     for (let i = 0; i < currentBook.chapters.length; i++) {
-        // Use requestAnimationFrame to avoid blocking the main thread
-        //await new Promise(resolve => requestAnimationFrame(resolve));
-
         const { pages, count } = calculatePages(currentBook.chapters[i].content);
         currentBook.chapters[i].pages = pages;
         pagesPerChapter.set(i, count);
         totalPages += count;
 
-        console.log(`Chapter ${i + 1}: ${count} pages (Running total: ${totalPages})`);
-
-        // Update loading progress
         const progress = Math.round((i / currentBook.chapters.length) * 100);
         updateLoadingProgress(progress, 
             `Calculating layout for chapter ${i + 1} of ${currentBook.chapters.length}...`);
 
-        // Give the UI a chance to update
         await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    console.log(`Final total pages: ${totalPages}`);
-
-    // Clean up temporary div
     document.body.removeChild(tempDiv);
 
-    // Make sure we have pages before proceeding
     if (totalPages === 0) {
-        console.error('No pages were calculated!');
-        console.log('Number of chapters:', currentBook.chapters.length);
-        console.log('First chapter content length:', currentBook.chapters[0]?.content.length);
+        console.error('Error: No pages were calculated');
     }
 }
 
