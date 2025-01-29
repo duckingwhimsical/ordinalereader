@@ -837,9 +837,13 @@ async function loadEpubFile() {
     }
 }
 
-// Update displayChapter function to handle page navigation
+// Update displayChapter function to remove duplicate scroll and improve consistency
 async function displayChapter(index, targetPage = 1, isForward = true) {
     try {
+        const readerContent = document.getElementById('reader-content');
+        if (!readerContent) return;
+
+        // Update chapter number immediately
         currentChapter = index;
         const chapter = currentBook.chapters[index];
         let content = chapter.content;
@@ -932,44 +936,46 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
         styleElement.textContent = combinedStyles;
         document.head.appendChild(styleElement);
 
-        // Update the content container styles
-        const readerContent = document.getElementById('reader-content');
-        if (readerContent) {
-            // Calculate initial dimensions
-            const { columnWidth, columnGap } = getPageDimensions(readerContent);
-            
-            // Apply only essential layout styles
-            Object.assign(readerContent.style, {
-                fontSize: `${currentFontSize}px`,
-                columnWidth: columnWidth + 'px',
-                columnGap: columnGap + 'px',
-                columnFill: 'auto',
-                height: '100%',
-                overflow: 'hidden',
-                padding: '0',
-                margin: '0'
-            });
+        // Calculate dimensions before content update
+        const { columnWidth, columnGap } = getPageDimensions(readerContent);
+        
+        // Apply layout styles
+        Object.assign(readerContent.style, {
+            fontSize: `${currentFontSize}px`,
+            columnWidth: `${columnWidth}px`,
+            columnGap: `${columnGap}px`,
+            columnFill: 'auto',
+            height: '100%',
+            overflow: 'hidden',
+            padding: '0',
+            margin: '0'
+        });
 
-            // Wait for fonts to load
-            await document.fonts.ready;
+        // Wait for fonts to load
+        await document.fonts.ready;
 
-            // Wrap content in a container div
-            const wrappedContent = `<div class="chapter-content">${content}</div>`;
-            
-            // Set content and scroll to target page
-            readerContent.innerHTML = wrappedContent;
-            
-            // Get final dimensions after content is loaded
-            const { pageWidth } = getPageDimensions(readerContent);
-            const targetOffset = (targetPage - 1) * pageWidth;
-            
-            // Use immediate scrolling instead of smooth
-            readerContent.scrollLeft = targetOffset;
+        // Temporarily disable scroll listener
+        readerContent.removeEventListener('scroll', handleScroll);
 
-            currentPage = targetPage;
-            updatePageDisplay();
-            updateBookmarkState();
-        }
+        // Update content
+        readerContent.innerHTML = `<div class="chapter-content">${content}</div>`;
+        
+        // Calculate final position
+        const { pageWidth } = getPageDimensions(readerContent);
+        const targetOffset = (targetPage - 1) * pageWidth;
+        
+        // Set scroll position immediately
+        readerContent.scrollLeft = targetOffset;
+
+        // Update page number after content and scroll are set
+        currentPage = targetPage;
+        updatePageDisplay();
+        updateBookmarkState();
+
+        // Re-enable scroll listener after a short delay
+        setTimeout(() => {
+            readerContent.addEventListener('scroll', handleScroll);
+        }, 100);
 
     } catch (error) {
         console.error('Error displaying chapter:', error);
@@ -978,6 +984,84 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             readerContent.innerHTML = '<div class="p-4 text-red-600">Error displaying chapter. Please try again.</div>';
         }
     }
+}
+
+// Extract scroll handler to a separate function for consistency
+function handleScroll(event) {
+    if (event.target.dataset.isScrolling === 'true') return;
+    
+    const container = event.target;
+    const { pageWidth } = getPageDimensions(container);
+    const currentScroll = container.scrollLeft;
+    
+    // Round to nearest page
+    const newPage = Math.round(currentScroll / pageWidth) + 1;
+    
+    if (newPage !== currentPage) {
+        currentPage = newPage;
+        updatePageDisplay();
+        updateBookmarkState();
+        
+        // Snap to page boundary if needed
+        const targetScroll = (newPage - 1) * pageWidth;
+        if (Math.abs(currentScroll - targetScroll) > 1) {
+            container.dataset.isScrolling = 'true';
+            container.scrollLeft = targetScroll;
+            setTimeout(() => {
+                container.dataset.isScrolling = 'false';
+            }, 50);
+        }
+    }
+}
+
+// Update setupScrollListener to use the extracted handler
+function setupScrollListener() {
+    const container = document.getElementById('reader-content');
+    if (!container) return;
+    
+    // Remove any existing listeners
+    container.removeEventListener('scroll', handleScroll);
+    
+    // Add debounced scroll listener
+    container.addEventListener('scroll', debounce(handleScroll, 100));
+}
+
+// Update goToPage function to be more precise
+function goToPage(pageNum) {
+    const container = document.getElementById('reader-content');
+    if (!container) return;
+
+    const { columnWidth, columnGap, pageWidth } = getPageDimensions(container);
+    const targetOffset = (pageNum - 1) * pageWidth;
+
+    // Temporarily disable scroll listener
+    container.removeEventListener('scroll', handleScroll);
+
+    // Update page number before scrolling
+    currentPage = pageNum;
+    updatePageDisplay();
+    updateBookmarkState();
+
+    // Apply layout and scroll
+    Object.assign(container.style, {
+        columnWidth: `${columnWidth}px`,
+        columnGap: `${columnGap}px`,
+        columnFill: 'auto',
+        height: '100%',
+        overflow: 'hidden',
+        padding: '0'
+    });
+
+    // Smooth scroll to target page
+    container.scrollTo({
+        left: targetOffset,
+        behavior: 'smooth'
+    });
+
+    // Re-enable scroll listener after animation
+    setTimeout(() => {
+        container.addEventListener('scroll', handleScroll);
+    }, 500); // Wait for smooth scroll to complete
 }
 
 const baseStyles = `
@@ -1194,39 +1278,6 @@ function getPageDimensions(container) {
     const columnWidth = parseInt(style.columnWidth) || container.clientWidth;
     const columnGap = parseInt(style.columnGap) || 40;
     return { columnWidth, columnGap, pageWidth: columnWidth + columnGap };
-}
-
-function goToPage(pageNum) {
-    const container = document.getElementById('reader-content');
-    const content = currentBook.chapters[currentChapter].content;
-
-    // Get actual dimensions from the DOM
-    const { columnWidth, columnGap, pageWidth } = getPageDimensions(container);
-
-    // Calculate the offset for the target page
-    const targetOffset = (pageNum - 1) * pageWidth;
-
-    // Apply column-based layout to container
-    Object.assign(container.style, {
-        columnWidth: columnWidth + 'px',
-        columnGap: columnGap + 'px',
-        columnFill: 'auto',
-        height: '100%',
-        overflow: 'hidden',
-        padding: '0'  // Remove padding from container
-    });
-
-    // Set content if not already set
-    if (!container.firstChild || container.firstChild.nodeType !== Node.ELEMENT_NODE) {
-        container.innerHTML = `<div class="chapter-content" style="padding: 2rem;">${content}</div>`;
-    }
-
-    // Immediate scroll to target page
-    container.scrollLeft = targetOffset;
-
-    currentPage = pageNum;
-    updatePageDisplay();
-    updateBookmarkState();
 }
 
 function nextPage() {
@@ -1446,25 +1497,4 @@ async function processImages(zip, basePath, manifest) {
             break; // Stop after finding first valid cover image
         }
     }
-}
-
-// Add scroll event listener to handle page detection
-function setupScrollListener() {
-    const container = document.getElementById('reader-content');
-    let scrollTimeout;
-    
-    container.addEventListener('scroll', () => {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-            const { pageWidth } = getPageDimensions(container);
-            const currentScroll = container.scrollLeft;
-            const newPage = Math.round(currentScroll / pageWidth) + 1;
-            
-            if (newPage !== currentPage) {
-                currentPage = newPage;
-                updatePageDisplay();
-                updateBookmarkState();
-            }
-        }, 100);
-    });
 }
