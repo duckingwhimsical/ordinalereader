@@ -35,6 +35,8 @@ let totalPages = 0;
 let pagesPerChapter = new Map();
 let bookmarks = [];
 let searchWorker = null;
+let wordsPerPage = new Map(); // Maps chapter -> page -> wordCount
+let totalWordsPerChapter = new Map(); // Maps chapter -> total words
 
 // Theme handling with transitions
 function setTheme(theme) {
@@ -389,35 +391,52 @@ function performSearch(text, query, chapter) {
     if (!text || !query) return [];
 
     const searchResults = [];
-    const lowerText = text.toLowerCase();
     const lowerQuery = query.toLowerCase();
+    const lowerText = text.toLowerCase();
 
-    // First clean any leftover HTML tags from the text
-    const cleanText = lowerText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    let index = cleanText.indexOf(lowerQuery);
+    let lastIndex = 0;
+    let index = lowerText.indexOf(lowerQuery, lastIndex);
 
     while (index !== -1) {
+        // Count words up to this match
+        const textUpToMatch = text.substring(0, index);
+        const wordIndex = textUpToMatch.split(/\s+/).length;
+
+        // Find the page based on word index
+        const chapterWordCounts = wordsPerPage.get(chapter);
+        let resultPage = 1;
+
+        // Find the page where this word index falls
+        for (const [page, count] of chapterWordCounts.entries()) {
+            if (wordIndex <= count) {
+                resultPage = page;
+                break;
+            }
+        }
+
         // Get surrounding context (50 chars before and after)
         const start = Math.max(0, index - 50);
-        const end = Math.min(cleanText.length, index + query.length + 50);
-        const preview = cleanText.slice(start, end);
+        const end = Math.min(text.length, index + query.length + 50);
+        const preview = text.slice(start, end);
 
         searchResults.push({
-            index,
+            index: wordIndex,
             preview: preview.replace(
                 new RegExp(query, 'gi'),
                 match => `<mark class="bg-yellow-200 dark:bg-yellow-500/50">${match}</mark>`
             ),
-            chapter
+            chapter,
+            page: resultPage
         });
 
-        index = cleanText.indexOf(lowerQuery, index + 1);
+        lastIndex = index + query.length;
+        index = lowerText.indexOf(lowerQuery, lastIndex);
     }
 
     return searchResults;
 }
 
-// Update handleSearch function to use event listeners instead of inline onclick
+// Update handleSearch function to use the new page numbers
 async function handleSearch() {
     const query = document.getElementById('searchInput').value.trim();
     const results = document.getElementById('searchResults');
@@ -434,7 +453,7 @@ async function handleSearch() {
         const allResults = currentBook.chapters.map((chapter, index) => {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = chapter.content;
-            const textContent = tempDiv.textContent.replace(/\s+/g, ' ').trim();
+            const textContent = tempDiv.textContent;
             return performSearch(textContent, query, index);
         }).flat();
 
@@ -443,19 +462,18 @@ async function handleSearch() {
             return;
         }
 
-        // Create result elements
+        // Create result elements with accurate page numbers
         results.innerHTML = allResults
             .map((match, index) => {
-                const page = Math.floor(match.index / 1000) + 1; // Rough estimate of page based on character count
                 return `
                     <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" 
                          data-chapter="${match.chapter}" 
-                         data-page="${page}">
+                         data-page="${match.page}">
                         <div class="text-sm text-gray-800 dark:text-gray-200">
                             ${match.preview}
                         </div>
                         <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            Chapter ${match.chapter + 1}, Page ${page} • Match ${index + 1} of ${allResults.length}
+                            Chapter ${match.chapter + 1}, Page ${match.page} • Match ${index + 1} of ${allResults.length}
                         </div>
                     </div>
                 `;
@@ -1277,15 +1295,67 @@ async function loadTotalPages() {
 
     // Process each chapter sequentially
     for (let i = 0; i < currentBook.chapters.length; i++) {
-        // Use requestAnimationFrame to avoid blocking the main thread
-        //await new Promise(resolve => requestAnimationFrame(resolve));
-
         const { pages, count } = calculatePages(currentBook.chapters[i].content);
         currentBook.chapters[i].pages = pages;
         pagesPerChapter.set(i, count);
         totalPages += count;
 
-        console.log(`Chapter ${i + 1}: ${count} pages (Running total: ${totalPages})`);
+        // Calculate actual words per page for this chapter
+        const chapterWordCounts = new Map();
+        const tempDiv = document.createElement('div');
+        tempDiv.style.cssText = window.getComputedStyle(document.getElementById('reader-content')).cssText;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.visibility = 'hidden';
+        tempDiv.style.columnCount = count;
+        tempDiv.style.columnGap = '40px';
+        tempDiv.innerHTML = currentBook.chapters[i].content;
+        document.body.appendChild(tempDiv);
+
+        // Get the actual page boundaries
+        const columnWidth = tempDiv.clientWidth / count;
+        const words = tempDiv.textContent.split(/\s+/);
+        let wordCount = 0;
+        let currentPage = 1;
+        
+        // Create a range to measure text positions
+        const range = document.createRange();
+        const textNodes = [];
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+        
+        // Collect all text nodes
+        let node;
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
+        }
+
+        // Process each text node
+        for (let j = 0; j < textNodes.length; j++) {
+            const node = textNodes[j];
+            const nodeWords = node.textContent.trim().split(/\s+/);
+            
+            for (const word of nodeWords) {
+                if (!word) continue;
+                
+                range.setStart(node, 0);
+                range.setEnd(node, node.textContent.indexOf(word) + word.length);
+                const rect = range.getBoundingClientRect();
+                const wordPage = Math.floor(rect.left / columnWidth) + 1;
+                
+                if (wordPage > currentPage) {
+                    chapterWordCounts.set(currentPage, wordCount);
+                    currentPage = wordPage;
+                }
+                wordCount++;
+            }
+        }
+        
+        // Set the final page word count
+        chapterWordCounts.set(currentPage, wordCount);
+        wordsPerPage.set(i, chapterWordCounts);
+        totalWordsPerChapter.set(i, wordCount);
+
+        document.body.removeChild(tempDiv);
+        range.detach();
 
         // Update loading progress
         const progress = Math.round((i / currentBook.chapters.length) * 100);
