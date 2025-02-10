@@ -38,6 +38,7 @@ let searchWorker = null;
 let wordsPerPage = new Map(); // Maps chapter -> page -> wordCount
 let totalWordsPerChapter = new Map(); // Maps chapter -> total words
 let bookTitle = 'Loading...';
+let navigationButtonsVisible = true;
 
 // Theme handling with transitions
 function setTheme(theme) {
@@ -1419,6 +1420,10 @@ function getPageDimensions(container) {
 }
 
 function nextPage() {
+    if (navigationButtonsVisible) {
+        navigationButtonsVisible = false;
+        updateNavigationButtonsVisibility();
+    }
     const chapterPages = pagesPerChapter.get(currentChapter) || 1;
     if (currentPage < chapterPages) {
         goToPage(currentPage + 1);
@@ -1428,6 +1433,10 @@ function nextPage() {
 }
 
 function prevPage() {
+    if (navigationButtonsVisible) {
+        navigationButtonsVisible = false;
+        updateNavigationButtonsVisibility();
+    }
     if (currentPage > 1) {
         goToPage(currentPage - 1);
     } else if (currentChapter > 0) {
@@ -1450,11 +1459,30 @@ function updatePageDisplay() {
     }
 }
 
+// Add new function to update button visibility
+function updateNavigationButtonsVisibility() {
+    const prevButton = document.getElementById('prevPage');
+    const nextButton = document.getElementById('nextPage');
+    
+    if (navigationButtonsVisible) {
+        prevButton.classList.remove('opacity-0');
+        nextButton.classList.remove('opacity-0');
+        prevButton.classList.add('opacity-100');
+        nextButton.classList.add('opacity-100');
+    } else {
+        prevButton.classList.remove('opacity-100');
+        nextButton.classList.remove('opacity-100');
+        prevButton.classList.add('opacity-0');
+        nextButton.classList.add('opacity-0');
+    }
+}
+
 // Initialize application
 function init() {
     setupControls();
     setupScrollListener();
     loadEpubFile();
+    updateNavigationButtonsVisibility();
 }
 
 init();
