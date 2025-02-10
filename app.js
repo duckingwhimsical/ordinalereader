@@ -43,13 +43,16 @@ function setTheme(theme) {
     const html = document.documentElement;
     const themes = {
         light: {
-            body: { color: '#1a1a1a', background: '#ffffff' }
+            body: { color: '#1a1a1a', background: '#ffffff' },
+            bookmark: { fill: '#1a1a1a', stroke: '#4b5563' }
         },
         dark: {
-            body: { color: '#e2e8f0', background: '#1a1a1a' }
+            body: { color: '#e2e8f0', background: '#1a1a1a' },
+            bookmark: { fill: '#e2e8f0', stroke: '#9ca3af' }
         },
         sepia: {
-            body: { color: '#574532', background: '#faf6f0' }
+            body: { color: '#574532', background: '#faf6f0' },
+            bookmark: { fill: '#574532', stroke: '#78716c' }
         }
     };
 
@@ -63,6 +66,7 @@ function setTheme(theme) {
     }
 
     storage.setItem('epub-theme', theme);
+    updateBookmarkState(); // Update bookmark button colors
 }
 
 // Initialize theme
@@ -1242,12 +1246,28 @@ function debounce(func, wait) {
 }
 
 function updateBookmarkState() {
+    const themes = {
+        light: {
+            bookmark: { fill: '#1a1a1a', stroke: '#4b5563' }
+        },
+        dark: {
+            bookmark: { fill: '#e2e8f0', stroke: '#9ca3af' }
+        },
+        sepia: {
+            bookmark: { fill: '#574532', stroke: '#78716c' }
+        }
+    };
+
+    const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
+                        document.documentElement.classList.contains('sepia') ? 'sepia' : 'light';
+    const themeColors = themes[currentTheme].bookmark;
+    
     const isBookmarked = bookmarks.some(b => b.chapter === currentChapter && b.page === currentPage);
     document.getElementById('bookmarkButton').innerHTML = isBookmarked
-        ? `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        ? `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="${themeColors.fill}" stroke="none">
                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
            </svg>`
-        : `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        : `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="${themeColors.stroke}" stroke-width="2">
                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
            </svg>`;
 }
