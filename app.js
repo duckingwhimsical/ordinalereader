@@ -1228,6 +1228,19 @@ function toggleSidebar() {
     }
 }
 
+// Add click outside handler for sidebar
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    const menuButton = document.getElementById('menuButton');
+    
+    // If sidebar is open and click is outside sidebar and not on menu button
+    if (!sidebar.classList.contains('-translate-x-full') && 
+        !sidebar.contains(e.target) && 
+        !menuButton.contains(e.target)) {
+        toggleSidebar();
+    }
+});
+
 // Setup event listeners
 function setupControls() {
     // Theme control
