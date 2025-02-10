@@ -37,6 +37,7 @@ let bookmarks = [];
 let searchWorker = null;
 let wordsPerPage = new Map(); // Maps chapter -> page -> wordCount
 let totalWordsPerChapter = new Map(); // Maps chapter -> total words
+let bookTitle = 'Loading...';
 
 // Theme handling with transitions
 function setTheme(theme) {
@@ -689,6 +690,12 @@ async function loadEpubFile() {
         updateLoadingProgress(50, 'Loading content.opf...');
         const opfContent = await zip.file(opfPath).async("text");
         const opfDoc = parser.parseFromString(opfContent, "text/xml");
+        
+        // Extract book title from metadata
+        const titleElement = opfDoc.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "title")[0];
+        bookTitle = titleElement ? titleElement.textContent : 'Untitled Book';
+        updateBookTitle();
+
         const basePath = opfPath.substring(0, opfPath.lastIndexOf("/") + 1);
         currentBook.basePath = basePath;
 
@@ -1626,6 +1633,22 @@ async function processImages(zip, basePath, manifest) {
     for (const path of coverPaths) {
         if (await processImage(path)) {
             break; // Stop after finding first valid cover image
+        }
+    }
+}
+
+// Add new function to update the book title in the UI
+function updateBookTitle() {
+    const titleElement = document.getElementById('bookTitle');
+    if (titleElement) {
+        if (bookTitle.includes(':')) {
+            const [mainTitle, subtitle] = bookTitle.split(':');
+            titleElement.innerHTML = `
+                <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${mainTitle.trim()}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">${subtitle.trim()}</div>
+            `;
+        } else {
+            titleElement.innerHTML = `<div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${bookTitle}</div>`;
         }
     }
 }
