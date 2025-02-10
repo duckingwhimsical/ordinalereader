@@ -518,12 +518,14 @@ function loadBookmarks() {
     if (saved) {
         try {
             bookmarks = JSON.parse(saved);
-            displayBookmarks();
         } catch (error) {
             console.error('Error loading bookmarks:', error);
             bookmarks = [];
         }
+    } else {
+        bookmarks = [];
     }
+    displayBookmarks();
 }
 
 function saveBookmarks() {
@@ -561,6 +563,18 @@ function toggleBookmark() {
 function displayBookmarks() {
     const container = document.getElementById('bookmarks');
     container.innerHTML = '';
+
+    if (!bookmarks || bookmarks.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                <svg class="w-12 h-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+                <p class="text-sm text-gray-600 dark:text-gray-400">No bookmarks yet</p>
+                <p class="text-xs text-gray-500 dark:text-gray-500">Click the bookmark icon while reading to save your spot</p>
+            </div>`;
+        return;
+    }
 
     bookmarks.forEach((bookmark, index) => {
         const item = document.createElement('div');
