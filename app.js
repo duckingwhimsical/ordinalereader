@@ -934,6 +934,18 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
                 height: 100%;
             }
             
+            /* Internal link styles */
+            .internal-link {
+                cursor: pointer;
+                text-decoration: none;
+                color: inherit;
+                transition: all 0.2s ease;
+            }
+            
+            .internal-link:hover {
+                text-decoration: underline;
+            }
+            
             /* Basic column break handling */
             .chapter-content h1, 
             .chapter-content h2, 
@@ -979,6 +991,28 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             }
         );
 
+        // Process internal links
+        content = content.replace(
+            /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g,
+            (match, href, linkContent) => {
+                // Check if it's an internal chapter link
+                if (href.endsWith('.xhtml') || href.endsWith('.html') || href.includes('#')) {
+                    // Find the target chapter index
+                    const targetChapter = currentBook.chapters.findIndex(ch => 
+                        ch.href === href || 
+                        ch.href.endsWith(href) || 
+                        ch.href.split('/').pop() === href.split('/').pop()
+                    );
+                    
+                    if (targetChapter !== -1) {
+                        // Use data attribute instead of onclick
+                        return `<a href="#" data-chapter="${targetChapter}" class="internal-link">${linkContent}</a>`;
+                    }
+                }
+                return match; // Keep external links unchanged
+            }
+        );
+
         // Remove any existing EPUB styles
         const existingStyles = document.querySelectorAll('style[data-epub-styles]');
         existingStyles.forEach(style => style.remove());
@@ -1012,6 +1046,17 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
 
         // Update content
         readerContent.innerHTML = `<div class="chapter-content">${content}</div>`;
+
+        // Add click handlers for internal links
+        readerContent.querySelectorAll('.internal-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetChapter = parseInt(link.dataset.chapter);
+                if (!isNaN(targetChapter)) {
+                    displayChapter(targetChapter);
+                }
+            });
+        });
         
         // Calculate final position
         const { pageWidth } = getPageDimensions(readerContent);
