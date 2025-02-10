@@ -44,15 +44,18 @@ function setTheme(theme) {
     const themes = {
         light: {
             body: { color: '#1a1a1a', background: '#ffffff' },
-            bookmark: { fill: '#1a1a1a', stroke: '#4b5563' }
+            bookmark: { fill: '#1a1a1a', stroke: '#4b5563' },
+            link: { color: '#1d4ed8', hover: '#1e40af', visited: '#6d28d9' }  // blue-700, blue-800, purple-700
         },
         dark: {
             body: { color: '#e2e8f0', background: '#1a1a1a' },
-            bookmark: { fill: '#e2e8f0', stroke: '#9ca3af' }
+            bookmark: { fill: '#e2e8f0', stroke: '#9ca3af' },
+            link: { color: '#60a5fa', hover: '#93c5fd', visited: '#c084fc' }  // blue-400, blue-300, purple-400
         },
         sepia: {
             body: { color: '#574532', background: '#faf6f0' },
-            bookmark: { fill: '#574532', stroke: '#78716c' }
+            bookmark: { fill: '#574532', stroke: '#78716c' },
+            link: { color: '#9a3412', hover: '#c2410c', visited: '#713f12' }  // orange-800, orange-700, amber-900
         }
     };
 
@@ -63,6 +66,38 @@ function setTheme(theme) {
     if (content) {
         content.style.color = themes[theme].body.color;
         content.style.backgroundColor = themes[theme].body.background;
+
+        // Add dynamic styles for links
+        const existingStyle = document.getElementById('theme-link-styles');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+
+        const linkStyle = document.createElement('style');
+        linkStyle.id = 'theme-link-styles';
+        linkStyle.textContent = `
+            #reader-content .chapter-content a,
+            #reader-content .chapter-content a *,
+            #reader-content .chapter-content a:link,
+            #reader-content .chapter-content a:visited {
+                color: ${themes[theme].link.color} !important;
+                text-decoration: underline;
+                text-underline-offset: 2px;
+                text-decoration-thickness: 1px;
+                transition: all 0.2s ease;
+            }
+            #reader-content .chapter-content a:hover,
+            #reader-content .chapter-content a:hover * {
+                color: ${themes[theme].link.hover} !important;
+                text-underline-offset: 3px;
+                text-decoration-thickness: 1.5px;
+            }
+            #reader-content .chapter-content a:visited,
+            #reader-content .chapter-content a:visited * {
+                color: ${themes[theme].link.visited} !important;
+            }
+        `;
+        document.head.appendChild(linkStyle);
     }
 
     storage.setItem('epub-theme', theme);
