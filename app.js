@@ -1192,14 +1192,18 @@ function displayNavigation() {
     nav.innerHTML = '';
 
     currentBook.titles.forEach((title, index) => {
-        const button = document.createElement('button');
-        button.className = 'w-full text-left px-4 py-2 textgray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200';
-        button.textContent = title;
-        button.onclick = () => {
+        const link = document.createElement('a');
+        link.className = 'block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors duration-200 cursor-pointer';
+        link.textContent = title;
+        link.href = '#';
+        link.setAttribute('role', 'button');
+        link.setAttribute('aria-label', `Go to ${title}`);
+        link.onclick = (e) => {
+            e.preventDefault();
             displayChapter(index);
             toggleSidebar();
         };
-        nav.appendChild(button);
+        nav.appendChild(link);
     });
 }
 
