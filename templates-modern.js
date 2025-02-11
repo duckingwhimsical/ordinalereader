@@ -103,12 +103,12 @@ window.templates = {
     // Modern bookmark button templates
     bookmarkButton: {
         active: () => `
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <svg class="w-6 h-6 text-blue-500 dark:text-blue-400 sepia:text-sepia-600" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"></path>
             </svg>
         `,
         inactive: () => `
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 sepia:text-sepia-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"></path>
             </svg>
         `
