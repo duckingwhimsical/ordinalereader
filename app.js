@@ -1,4 +1,4 @@
-// Storage utility from oldapp.js
+
 const storage = {
     available: false,
     memoryStore: new Map(),
@@ -112,6 +112,11 @@ setTheme(savedTheme);
 
 // Loading animation handling
 function updateLoadingProgress(progress, status) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay.querySelector('.text-center')) {
+        overlay.innerHTML = templates.loadingOverlay();
+    }
+    
     const progressBar = document.getElementById('loadingProgress');
     const statusText = document.getElementById('loadingStatus');
 
@@ -484,7 +489,7 @@ async function handleSearch() {
     const overlay = document.getElementById('searchOverlay');
 
     if (!query || !currentBook) {
-        results.innerHTML = '<div class="p-2 text-gray-600 dark:text-gray-400">Enter a search term...</div>';
+        results.innerHTML = templates.emptySearchResults();
         return;
     }
 
@@ -499,26 +504,12 @@ async function handleSearch() {
         }).flat();
 
         if (allResults.length === 0) {
-            results.innerHTML = '<div class="p-2 text-gray-600 dark:text-gray-400">No results found</div>';
+            results.innerHTML = templates.emptySearchResults();
             return;
         }
 
-        // Create result elements with accurate page numbers
         results.innerHTML = allResults
-            .map((match, index) => {
-                return `
-                    <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded" 
-                         data-chapter="${match.chapter}" 
-                         data-page="${match.page}">
-                        <div class="text-sm text-gray-800 dark:text-gray-200">
-                            ${match.preview}
-                        </div>
-                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            Chapter ${match.chapter + 1}, Page ${match.page} • Match ${index + 1} of ${allResults.length}
-                        </div>
-                    </div>
-                `;
-            })
+            .map((match, index) => templates.searchResult(match, index, allResults.length))
             .join('');
 
         // Add click handlers to results
@@ -533,7 +524,7 @@ async function handleSearch() {
         });
     } catch (error) {
         console.error('Search error:', error);
-        results.innerHTML = '<div class="p-2 text-red-600 dark:text-red-400">An error occurred while searching</div>';
+        results.innerHTML = templates.errorSearchResults();
     }
 }
 
@@ -586,16 +577,10 @@ function toggleBookmark() {
     const existingIndex = bookmarks.findIndex(b => b.chapter === currentChapter && b.page === currentPage);
     if (existingIndex >= 0) {
         bookmarks.splice(existingIndex, 1);
-        document.getElementById('bookmarkButton').innerHTML = `
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-            </svg>`;
+        document.getElementById('bookmarkButton').innerHTML = templates.bookmarkButton.inactive();
     } else {
         bookmarks.push(currentLocation);
-        document.getElementById('bookmarkButton').innerHTML = `
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
-            </svg>`;
+        document.getElementById('bookmarkButton').innerHTML = templates.bookmarkButton.active();
     }
 
     saveBookmarks();
@@ -606,52 +591,12 @@ function displayBookmarks() {
     container.innerHTML = '';
 
     if (!bookmarks || bookmarks.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                <svg class="w-12 h-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                </svg>
-                <p class="text-sm text-gray-600 dark:text-gray-400">No bookmarks yet</p>
-                <p class="text-xs text-gray-500 dark:text-gray-500">Click the bookmark icon while reading to save your spot</p>
-            </div>`;
+        container.innerHTML = templates.emptyBookmarks();
         return;
     }
 
     bookmarks.forEach((bookmark, index) => {
-        const item = document.createElement('div');
-        item.className = 'flex justify-between items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg';
-
-        const textDiv = document.createElement('div');
-        textDiv.className = 'flex-1';
-        textDiv.innerHTML = `
-            <button class="text-left text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                ${bookmark.title}
-            </button>
-            <div class="text-xs text-gray-500">
-                Page ${bookmark.page} • ${new Date(bookmark.timestamp).toLocaleDateString()}
-            </div>
-            ${bookmark.preview ? `<div class="text-xs text-gray-600 dark:text-gray-400 mt-1">${bookmark.preview}</div>` : ''}
-        `;
-        textDiv.onclick = () => {
-            displayChapter(bookmark.chapter, bookmark.page);
-            toggleSidebar();
-        };
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'ml-2 text-gray-400 hover:text-red-500';
-        removeBtn.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>`;
-        removeBtn.onclick = (e) => {
-            e.stopPropagation();
-            bookmarks.splice(index, 1);
-            saveBookmarks();
-        };
-
-        item.appendChild(textDiv);
-        item.appendChild(removeBtn);
-        container.appendChild(item);
+        container.innerHTML += templates.bookmarkItem(bookmark, index);
     });
 }
 
@@ -1200,18 +1145,16 @@ function displayNavigation() {
     nav.innerHTML = '';
 
     currentBook.titles.forEach((title, index) => {
-        const link = document.createElement('a');
-        link.className = 'block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors duration-200 cursor-pointer';
-        link.textContent = title;
-        link.href = '#';
-        link.setAttribute('role', 'button');
-        link.setAttribute('aria-label', `Go to ${title}`);
+        nav.innerHTML += templates.tocItem(title, index);
+    });
+
+    // Add click handlers
+    nav.querySelectorAll('[data-chapter-index]').forEach(link => {
         link.onclick = (e) => {
             e.preventDefault();
-            displayChapter(index);
+            displayChapter(parseInt(link.dataset.chapterIndex));
             toggleSidebar();
         };
-        nav.appendChild(link);
     });
 }
 
@@ -1351,30 +1294,13 @@ function debounce(func, wait) {
 }
 
 function updateBookmarkState() {
-    const themes = {
-        light: {
-            bookmark: { fill: '#1a1a1a', stroke: '#4b5563' }
-        },
-        dark: {
-            bookmark: { fill: '#e2e8f0', stroke: '#9ca3af' }
-        },
-        sepia: {
-            bookmark: { fill: '#574532', stroke: '#78716c' }
-        }
-    };
-
     const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
                         document.documentElement.classList.contains('sepia') ? 'sepia' : 'light';
-    const themeColors = themes[currentTheme].bookmark;
     
     const isBookmarked = bookmarks.some(b => b.chapter === currentChapter && b.page === currentPage);
     document.getElementById('bookmarkButton').innerHTML = isBookmarked
-        ? `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="${themeColors.fill}" stroke="none">
-               <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path>
-           </svg>`
-        : `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="${themeColors.stroke}" stroke-width="2">
-               <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-           </svg>`;
+        ? templates.bookmarkButton.active()
+        : templates.bookmarkButton.inactive();
 }
 
 // Pagination functions
@@ -1477,15 +1403,26 @@ function updateNavigationButtonsVisibility() {
     }
 }
 
-// Initialize application
-function init() {
+// Update the init function to remove template loading
+async function init() {
+    // Ensure templates are available
+    if (!window.templates) {
+        console.error('Templates not loaded! Make sure to include either templates.js or custom-templates.js in your HTML.');
+        return;
+    }
+    
     setupControls();
     setupScrollListener();
     loadEpubFile();
     updateNavigationButtonsVisibility();
 }
 
-init();
+// Wait for templates to be available before initializing
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 async function loadTotalPages() {
     // Pre-calculate pages for all chapters
@@ -1671,12 +1608,9 @@ function updateBookTitle() {
     if (titleElement) {
         if (bookTitle.includes(':')) {
             const [mainTitle, subtitle] = bookTitle.split(':');
-            titleElement.innerHTML = `
-                <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${mainTitle.trim()}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">${subtitle.trim()}</div>
-            `;
+            titleElement.innerHTML = templates.bookTitle(mainTitle.trim(), subtitle.trim());
         } else {
-            titleElement.innerHTML = `<div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${bookTitle}</div>`;
+            titleElement.innerHTML = templates.bookTitle(bookTitle);
         }
     }
 }

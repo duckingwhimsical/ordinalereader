@@ -9,6 +9,10 @@
     <script type="text/javascript" src="staticjs/tailwind.js"></script>
     <script type="text/javascript" src="staticjs/jszip.min.js"></script>
     <script type="text/javascript" src="staticjs/opentype.min.js"></script>
+    <!-- Load either templates-default.js or templates-modern.js -->
+    <!-- <script type="text/javascript" src="templates-default.js"></script> -->
+    <!-- For modern UI, comment out the line above and uncomment the line below -->
+    <script type="text/javascript" src="templates-modern.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -406,6 +410,6 @@
         </div>
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script type="text/javascript" src="app.js"></script>
 </body>
 </html>
