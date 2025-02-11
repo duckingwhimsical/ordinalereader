@@ -1,5 +1,93 @@
 // Default templates for the EPUB reader
 window.templates = {
+    // Configuration values
+    config: {
+        pageTurnSpeed: 500, // milliseconds
+        pageTurnBehavior: 'smooth',
+        scrollDebounceTime: 100, // milliseconds
+        snapAnimationSpeed: 50 // milliseconds - for snap-to-page animation
+    },
+
+    // Base styles for the reader content
+    baseStyles: `
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: bold;
+            line-height: 1.2;
+            margin: 1px 0 0.5em;
+        }
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; }
+        h3 { font-size: 1.17em; }
+        strong, b { font-weight: bold; }
+        em, i { font-style: italic; }
+        sub { vertical-align: sub; font-size: smaller; }
+        sup { vertical-align: super; font-size: smaller; }
+        pre, code {
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        blockquote {
+            margin: 1px 2em;
+            padding-left: 1px;
+            border-left: 3px solid #ccc;
+        }
+    `,
+
+    // Reader layout styles
+    readerStyles: `
+        /* Reader layout styles */
+        .chapter-content {
+            padding: 2rem;
+            column-fill: auto;
+            height: 100%;
+        }
+        
+        /* Internal link styles */
+        .internal-link {
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
+        }
+        
+        .internal-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Basic column break handling */
+        .chapter-content h1, 
+        .chapter-content h2, 
+        .chapter-content h3, 
+        .chapter-content h4, 
+        .chapter-content h5, 
+        .chapter-content h6, 
+        .chapter-content img, 
+        .chapter-content table, 
+        .chapter-content pre {
+            break-inside: avoid;
+            break-before: auto;
+            break-after: auto;
+        }
+        
+        /* Default spacing only if not specified by ebook */
+        .chapter-content p:not([style*="margin"]) {
+            margin: 1px 0;
+            orphans: 2;
+            widows: 2;
+        }
+        
+        /* Default heading margins only if not specified by ebook */
+        .chapter-content h1:not([style*="margin"]),
+        .chapter-content h2:not([style*="margin"]),
+        .chapter-content h3:not([style*="margin"]),
+        .chapter-content h4:not([style*="margin"]),
+        .chapter-content h5:not([style*="margin"]),
+        .chapter-content h6:not([style*="margin"]) {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+    `,
+
     // Simple loading overlay template
     loadingOverlay: () => `
         <div class="text-center p-4 bg-white dark:bg-gray-800 rounded shadow">

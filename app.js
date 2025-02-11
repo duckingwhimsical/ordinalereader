@@ -1,4 +1,3 @@
-
 const storage = {
     available: false,
     memoryStore: new Map(),
@@ -39,6 +38,9 @@ let wordsPerPage = new Map(); // Maps chapter -> page -> wordCount
 let totalWordsPerChapter = new Map(); // Maps chapter -> total words
 let bookTitle = 'Loading...';
 let navigationButtonsVisible = true;
+
+// Set CSS variables for animations
+document.documentElement.style.setProperty('--page-turn-speed', `${templates.config.pageTurnSpeed}ms`);
 
 // Theme handling with transitions
 function setTheme(theme) {
@@ -878,60 +880,9 @@ async function displayChapter(index, targetPage = 1, isForward = true) {
             combinedStyles += `#reader-content .chapter-content {\n${chapter.internalStyles}\n}\n`;
         }
 
-        // Add essential reader layout styles
-        combinedStyles += `
-            /* Reader layout styles */
-            .chapter-content {
-                padding: 2rem;
-                column-fill: auto;
-                height: 100%;
-            }
-            
-            /* Internal link styles */
-            .internal-link {
-                cursor: pointer;
-                text-decoration: none;
-                color: inherit;
-                transition: all 0.2s ease;
-            }
-            
-            .internal-link:hover {
-                text-decoration: underline;
-            }
-            
-            /* Basic column break handling */
-            .chapter-content h1, 
-            .chapter-content h2, 
-            .chapter-content h3, 
-            .chapter-content h4, 
-            .chapter-content h5, 
-            .chapter-content h6, 
-            .chapter-content img, 
-            .chapter-content table, 
-            .chapter-content pre {
-                break-inside: avoid;
-                break-before: auto;
-                break-after: auto;
-            }
-            
-            /* Default spacing only if not specified by ebook */
-            .chapter-content p:not([style*="margin"]) {
-                margin: 1px 0;
-                orphans: 2;
-                widows: 2;
-            }
-            
-            /* Default heading margins only if not specified by ebook */
-            .chapter-content h1:not([style*="margin"]),
-            .chapter-content h2:not([style*="margin"]),
-            .chapter-content h3:not([style*="margin"]),
-            .chapter-content h4:not([style*="margin"]),
-            .chapter-content h5:not([style*="margin"]),
-            .chapter-content h6:not([style*="margin"]) {
-                margin-top: 1.5em;
-                margin-bottom: 0.5em;
-            }
-        `;
+        // Add essential reader layout styles and base styles
+        combinedStyles += templates.readerStyles;
+        combinedStyles += templates.baseStyles;
 
         // Process images
         content = content.replace(
@@ -1052,29 +1003,7 @@ function handleScroll(event) {
         currentPage = newPage;
         updatePageDisplay();
         updateBookmarkState();
-        
-        // Snap to page boundary if needed
-        const targetScroll = (newPage - 1) * pageWidth;
-        if (Math.abs(currentScroll - targetScroll) > 1) {
-            container.dataset.isScrolling = 'true';
-            container.scrollLeft = targetScroll;
-            setTimeout(() => {
-                container.dataset.isScrolling = 'false';
-            }, 50);
-        }
     }
-}
-
-// Update setupScrollListener to use the extracted handler
-function setupScrollListener() {
-    const container = document.getElementById('reader-content');
-    if (!container) return;
-    
-    // Remove any existing listeners
-    container.removeEventListener('scroll', handleScroll);
-    
-    // Add debounced scroll listener
-    container.addEventListener('scroll', debounce(handleScroll, 100));
 }
 
 // Update goToPage function to be more precise
@@ -1082,63 +1011,32 @@ function goToPage(pageNum) {
     const container = document.getElementById('reader-content');
     if (!container) return;
 
-    const { columnWidth, columnGap, pageWidth } = getPageDimensions(container);
+    const { pageWidth } = getPageDimensions(container);
     const targetOffset = (pageNum - 1) * pageWidth;
 
     // Temporarily disable scroll listener
     container.removeEventListener('scroll', handleScroll);
+    container.dataset.isScrolling = 'true';
 
     // Update page number before scrolling
     currentPage = pageNum;
     updatePageDisplay();
     updateBookmarkState();
 
-    // Apply layout and scroll
-    Object.assign(container.style, {
-        columnWidth: `${columnWidth}px`,
-        columnGap: `${columnGap}px`,
-        columnFill: 'auto',
-        height: '100%',
-        overflow: 'hidden',
-        padding: '0'
-    });
+    // Add turn animation class
+    const direction = pageNum > currentPage ? 'turn-forward' : 'turn-backward';
+    container.classList.add(direction);
 
-    // Smooth scroll to target page
-    container.scrollTo({
-        left: targetOffset,
-        behavior: 'smooth'
-    });
+    // Scroll to target page
+    container.scrollLeft = targetOffset;
 
-    // Re-enable scroll listener after animation
+    // Remove animation class and re-enable scroll after animation
     setTimeout(() => {
+        container.classList.remove('turn-forward', 'turn-backward');
+        container.dataset.isScrolling = 'false';
         container.addEventListener('scroll', handleScroll);
-    }, 500); // Wait for smooth scroll to complete
+    }, templates.config.pageTurnSpeed);
 }
-
-const baseStyles = `
-            h1, h2, h3, h4, h5, h6 {
-                font-weight: bold;
-                line-height: 1.2;
-                margin: 1px 0 0.5em;
-            }
-            h1 { font-size: 2em; }
-            h2 { font-size: 1.5em; }
-            h3 { font-size: 1.17em; }
-            strong, b { font-weight: bold; }
-            em, i { font-style: italic; }
-            sub { vertical-align: sub; font-size: smaller; }
-            sup { vertical-align: super; font-size: smaller; }
-            pre, code {
-                font-family: monospace;
-                white-space: pre-wrap;
-            }
-            blockquote {
-                margin: 1px 2em;
-                padding-left: 1px;
-                border-left: 3px solid #ccc;
-            }
-        `;
-
 
 function displayNavigation() {
     const nav = document.getElementById('toc');
@@ -1202,23 +1100,13 @@ function setupControls() {
     document.getElementById('fontSize').value = currentFontSize;
     document.getElementById('fontSize').onchange = async (e) => {
         currentFontSize = parseInt(e.target.value);
-
-        // Optionally update immediately so the text resizes right away
         updateFontSize();
-
-        // Save the new size in storage
         storage.setItem('epub-font-size', currentFontSize);
-
-        // Recalculate pagination for the entire book
         await loadTotalPages();
-
-        // Clamp the current page if it exceeds the new total in this chapter
         const totalCurrentChapterPages = pagesPerChapter.get(currentChapter) || 1;
         if (currentPage > totalCurrentChapterPages) {
             currentPage = totalCurrentChapterPages;
         }
-
-        // Redisplay the current chapter at the same page number if possible
         displayChapter(currentChapter, currentPage);
     };
 
@@ -1271,12 +1159,7 @@ function setupControls() {
     // Handle scroll events for page tracking
     const readerContent = document.getElementById('reader-content');
     if (readerContent) {
-        readerContent.addEventListener('scroll', debounce(() => {
-            const pageHeight = readerContent.clientHeight;
-            currentPage = Math.floor(readerContent.scrollTop / pageHeight) + 1;
-            updatePageDisplay();
-            updateBookmarkState();
-        }, 100));
+        readerContent.addEventListener('scroll', handleScroll);
     }
 }
 
@@ -1412,7 +1295,6 @@ async function init() {
     }
     
     setupControls();
-    setupScrollListener();
     loadEpubFile();
     updateNavigationButtonsVisibility();
 }
