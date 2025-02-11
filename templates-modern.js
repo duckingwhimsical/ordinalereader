@@ -189,10 +189,10 @@ window.templates = {
 
     // Modern book title template
     bookTitle: (title, subtitle) => `
-        <div class="flex flex-col items-center justify-center">
-            <div class="text-xl font-bold text-gray-800 dark:text-gray-200 tracking-wide">${title}</div>
+        <div class="flex flex-col items-center justify-center leading-tight">
+            <h1 class="text-base font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[500px]">${title}</h1>
             ${subtitle ? `
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1 italic">
+                <div class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[600px]">
                     ${subtitle}
                 </div>
             ` : ''}
