@@ -1018,13 +1018,15 @@ function goToPage(pageNum) {
     container.removeEventListener('scroll', handleScroll);
     container.dataset.isScrolling = 'true';
 
-    // Update page number before scrolling
+    // Determine direction before updating currentPage
+    const direction = pageNum > currentPage ? 'turn-forward' : 'turn-backward';
+    
+    // Update page number
     currentPage = pageNum;
     updatePageDisplay();
     updateBookmarkState();
 
     // Add turn animation class
-    const direction = pageNum > currentPage ? 'turn-forward' : 'turn-backward';
     container.classList.add(direction);
 
     // Scroll to target page
